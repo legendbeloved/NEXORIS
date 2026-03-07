@@ -1,0 +1,7 @@
+{
+  "name": "NEXORIS",
+  "description": "Fully automated multi-agent business outreach and client acquisition platform.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

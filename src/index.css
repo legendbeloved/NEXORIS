@@ -1,0 +1,77 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Syne", sans-serif;
+  --font-sans: "DM Sans", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  
+  --color-brand-bg: #08091A;
+  --color-brand-primary: #5B4CF5;
+  --color-brand-secondary: #00D4FF;
+  --color-brand-accent: #F59E0B;
+}
+
+@layer base {
+  body {
+    @apply bg-brand-bg text-zinc-100 font-sans antialiased;
+  }
+  html {
+    scroll-behavior: smooth;
+    height: 100%;
+  }
+  body, #root {
+    height: 100%;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10;
+  }
+  
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .text-gradient {
+    background-image: linear-gradient(to right, var(--color-brand-primary), var(--color-brand-secondary));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  
+  .pulse-slow {
+    animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-20px); }
+  }
+  .float {
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  .aurora-bg {
+    background: radial-gradient(circle at 0% 0%, rgba(91, 76, 245, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 100% 100%, rgba(0, 212, 255, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(245, 158, 11, 0.05) 0%, transparent 50%);
+  }
+  
+  .dashboard-preview {
+    transform: perspective(1000px) rotateX(5deg) rotateY(-15deg);
+    transition: transform 0.5s ease;
+  }
+  .dashboard-preview:hover {
+    transform: perspective(1000px) rotateX(0deg) rotateY(0deg);
+  }
+
+  .grain {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  }
+}

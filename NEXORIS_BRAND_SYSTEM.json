@@ -1,0 +1,862 @@
+{
+  "brand_identity": {
+    "name": "NEXORIS",
+    "tagline": "Find. Connect. Close. Automatically.",
+    "mission": "Empower entrepreneurs, agencies, and solo operators with enterprise-grade AI systems that autonomously find, pitch, convert, and serve clients — so you build a business, not a job.",
+    "vision": "A world where anyone with a skill can scale their client acquisition to any size, without hiring a sales team, without cold-calling, and without interrupting their deep work.",
+    "brand_statement": "NEXORIS is the operating system behind your client pipeline. Three intelligent agents work in shifts that never end — discovering, convincing, and closing — while you focus on what you do best.",
+    "tone": "Confident. Precise. Slightly futuristic. Never corporate. Never casual.",
+    "archetype": "The Sage + The Innovator",
+    "personality_traits": [
+      "Authoritative",
+      "Efficient",
+      "Intelligent",
+      "Transparent",
+      "Relentless",
+      "Trustworthy",
+      "Forward-thinking"
+    ],
+    "target_audience": "Freelancers, solo developers, designers, agencies, and solo operators who want enterprise-level client acquisition without a sales team."
+  },
+  "logo": {
+    "type": "combination_mark",
+    "concept": "Bold uppercase wordmark NEXORIS in geometric letterforms. A custom ligature between the X and O creates a subtle infinity loop orbital symbol. The icon mark is an abstract hexagonal node with three interconnected lines representing the three AI agents. Clean, minimal, technical.",
+    "clearance_zone": "Use minimum 16px padding on all sides from any other element",
+    "minimum_size": {
+      "full_wordmark": "120px wide",
+      "icon_only": "24px",
+      "favicon": "32px"
+    },
+    "variants": {
+      "full_color_dark": {
+        "wordmark_color": "#5B4CF5",
+        "icon_color": "#00D4FF",
+        "background": "dark surfaces only",
+        "usage": "Primary — dark backgrounds"
+      },
+      "full_color_light": {
+        "wordmark_color": "#3D2FD4",
+        "icon_color": "#0099CC",
+        "background": "light surfaces only",
+        "usage": "Light mode version"
+      },
+      "white": {
+        "wordmark_color": "#FFFFFF",
+        "icon_color": "#FFFFFF",
+        "background": "colored or gradient backgrounds",
+        "usage": "On brand color backgrounds"
+      },
+      "black": {
+        "wordmark_color": "#08091A",
+        "icon_color": "#08091A",
+        "background": "white or very light backgrounds",
+        "usage": "Print or high-contrast contexts"
+      },
+      "monochrome": {
+        "wordmark_color": "#555555",
+        "icon_color": "#555555",
+        "background": "any light background",
+        "usage": "Single-color contexts"
+      },
+      "icon_only": {
+        "color": "#5B4CF5",
+        "usage": "Favicon, app icon, avatar, small format contexts"
+      }
+    }
+  },
+  "colors": {
+    "primary": {
+      "default": "#5B4CF5",
+      "light": "#7C6FFF",
+      "lighter": "#A89EFF",
+      "dark": "#3D2FD4",
+      "darker": "#2820A3",
+      "alpha_10": "rgba(91, 76, 245, 0.10)",
+      "alpha_20": "rgba(91, 76, 245, 0.20)",
+      "alpha_40": "rgba(91, 76, 245, 0.40)"
+    },
+    "secondary": {
+      "default": "#00D4FF",
+      "light": "#40E0FF",
+      "lighter": "#80ECFF",
+      "dark": "#00A3C8",
+      "darker": "#007A96",
+      "alpha_10": "rgba(0, 212, 255, 0.10)",
+      "alpha_20": "rgba(0, 212, 255, 0.20)",
+      "alpha_40": "rgba(0, 212, 255, 0.40)"
+    },
+    "accent": {
+      "default": "#F59E0B",
+      "light": "#FBB83F",
+      "lighter": "#FDD07A",
+      "dark": "#D97706",
+      "darker": "#B45309",
+      "alpha_10": "rgba(245, 158, 11, 0.10)",
+      "alpha_20": "rgba(245, 158, 11, 0.20)",
+      "alpha_40": "rgba(245, 158, 11, 0.40)"
+    },
+    "neutral": {
+      "50": "#F8F9FF",
+      "100": "#EEF0FF",
+      "200": "#D4D8FF",
+      "300": "#A8AEFF",
+      "400": "#7A82CC",
+      "500": "#555E99",
+      "600": "#3D4470",
+      "700": "#2A2F50",
+      "800": "#1A1F38",
+      "900": "#0D1028"
+    },
+    "midnight": {
+      "deep": "#08091A",
+      "mid": "#0D1030",
+      "raised": "#141840",
+      "elevated": "#1C2060"
+    },
+    "semantic": {
+      "success": {
+        "default": "#10B981",
+        "light": "#34D399",
+        "dark": "#059669",
+        "bg": "rgba(16, 185, 129, 0.10)",
+        "border": "rgba(16, 185, 129, 0.30)"
+      },
+      "warning": {
+        "default": "#F59E0B",
+        "light": "#FBB83F",
+        "dark": "#D97706",
+        "bg": "rgba(245, 158, 11, 0.10)",
+        "border": "rgba(245, 158, 11, 0.30)"
+      },
+      "error": {
+        "default": "#EF4444",
+        "light": "#F87171",
+        "dark": "#DC2626",
+        "bg": "rgba(239, 68, 68, 0.10)",
+        "border": "rgba(239, 68, 68, 0.30)"
+      },
+      "info": {
+        "default": "#00D4FF",
+        "light": "#40E0FF",
+        "dark": "#00A3C8",
+        "bg": "rgba(0, 212, 255, 0.10)",
+        "border": "rgba(0, 212, 255, 0.30)"
+      }
+    },
+    "agents": {
+      "agent_1": {
+        "name": "Discovery Agent",
+        "color": "#5B4CF5",
+        "glow": "rgba(91, 76, 245, 0.40)",
+        "bg": "rgba(91, 76, 245, 0.10)",
+        "label": "Indigo"
+      },
+      "agent_2": {
+        "name": "Outreach Agent",
+        "color": "#00D4FF",
+        "glow": "rgba(0, 212, 255, 0.40)",
+        "bg": "rgba(0, 212, 255, 0.10)",
+        "label": "Aqua"
+      },
+      "agent_3": {
+        "name": "Negotiation Agent",
+        "color": "#F59E0B",
+        "glow": "rgba(245, 158, 11, 0.40)",
+        "bg": "rgba(245, 158, 11, 0.10)",
+        "label": "Amber"
+      }
+    },
+    "gradients": {
+      "hero_aurora": {
+        "value": "radial-gradient(ellipse at 20% 50%, rgba(91, 76, 245, 0.35) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, rgba(0, 212, 255, 0.25) 0%, transparent 50%), radial-gradient(ellipse at 60% 80%, rgba(245, 158, 11, 0.15) 0%, transparent 40%), #08091A",
+        "usage": "Hero section background"
+      },
+      "primary_gradient": {
+        "value": "linear-gradient(135deg, #5B4CF5 0%, #3D2FD4 50%, #7C6FFF 100%)",
+        "usage": "Primary CTAs, featured elements"
+      },
+      "agent_flow": {
+        "value": "linear-gradient(90deg, #5B4CF5 0%, #00D4FF 50%, #F59E0B 100%)",
+        "usage": "Agent pipeline visualization"
+      },
+      "glass_surface": {
+        "value": "linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)",
+        "usage": "Glass card backgrounds"
+      },
+      "revenue_glow": {
+        "value": "radial-gradient(ellipse at center, rgba(245, 158, 11, 0.30) 0%, transparent 70%)",
+        "usage": "Revenue KPI card background glow"
+      },
+      "dark_to_transparent": {
+        "value": "linear-gradient(180deg, #08091A 0%, transparent 100%)",
+        "usage": "Scroll fade effect at section tops"
+      }
+    }
+  },
+  "dark_mode_tokens": {
+    "bg_base": "#08091A",
+    "bg_surface": "#0D1030",
+    "bg_elevated": "#141840",
+    "bg_overlay": "rgba(8, 9, 26, 0.92)",
+    "bg_glass": "rgba(255, 255, 255, 0.04)",
+    "bg_glass_hover": "rgba(255, 255, 255, 0.07)",
+    "border_default": "rgba(255, 255, 255, 0.08)",
+    "border_strong": "rgba(255, 255, 255, 0.16)",
+    "border_focus": "#5B4CF5",
+    "text_primary": "#F0F2FF",
+    "text_secondary": "#8B93C4",
+    "text_muted": "#555E99",
+    "text_disabled": "#3D4470",
+    "text_inverse": "#08091A",
+    "shadow_sm": "0 1px 3px rgba(0,0,0,0.4)",
+    "shadow_md": "0 4px 16px rgba(0,0,0,0.5)",
+    "shadow_lg": "0 8px 32px rgba(0,0,0,0.6)",
+    "shadow_xl": "0 16px 48px rgba(0,0,0,0.7)",
+    "shadow_glass": "0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)",
+    "scrollbar_track": "#0D1030",
+    "scrollbar_thumb": "#2A2F50"
+  },
+  "light_mode_tokens": {
+    "bg_base": "#F8F9FF",
+    "bg_surface": "#FFFFFF",
+    "bg_elevated": "#FFFFFF",
+    "bg_overlay": "rgba(248, 249, 255, 0.95)",
+    "bg_glass": "rgba(91, 76, 245, 0.04)",
+    "bg_glass_hover": "rgba(91, 76, 245, 0.07)",
+    "border_default": "rgba(0, 0, 0, 0.08)",
+    "border_strong": "rgba(0, 0, 0, 0.16)",
+    "border_focus": "#5B4CF5",
+    "text_primary": "#08091A",
+    "text_secondary": "#3D4470",
+    "text_muted": "#7A82CC",
+    "text_disabled": "#A8AEFF",
+    "text_inverse": "#F0F2FF",
+    "shadow_sm": "0 1px 3px rgba(91, 76, 245, 0.06)",
+    "shadow_md": "0 4px 16px rgba(91, 76, 245, 0.08)",
+    "shadow_lg": "0 8px 32px rgba(91, 76, 245, 0.12)",
+    "shadow_xl": "0 16px 48px rgba(91, 76, 245, 0.16)",
+    "shadow_glass": "0 8px 32px rgba(91, 76, 245, 0.10), inset 0 1px 0 rgba(255,255,255,0.80)",
+    "scrollbar_track": "#EEF0FF",
+    "scrollbar_thumb": "#A8AEFF"
+  },
+  "typography": {
+    "display_font": {
+      "name": "Syne",
+      "source": "Google Fonts",
+      "import_url": "https://fonts.googleapis.com/css2?family=Syne:wght@700;800&display=swap",
+      "weights": {
+        "bold": 700,
+        "extrabold": 800
+      },
+      "fallback_stack": "'Syne', 'Georgia', 'Times New Roman', serif",
+      "usage": "Hero headings, agent names, section titles, KPI numbers, brand wordmark"
+    },
+    "body_font": {
+      "name": "DM Sans",
+      "source": "Google Fonts",
+      "import_url": "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap",
+      "weights": {
+        "regular": 400,
+        "medium": 500,
+        "semibold": 600
+      },
+      "fallback_stack": "'DM Sans', 'Helvetica Neue', 'Arial', sans-serif",
+      "usage": "Body copy, labels, descriptions, table content, micro-copy, UI text"
+    },
+    "mono_font": {
+      "name": "JetBrains Mono",
+      "source": "Google Fonts",
+      "import_url": "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap",
+      "weights": {
+        "regular": 400,
+        "medium": 500
+      },
+      "fallback_stack": "'JetBrains Mono', 'Fira Code', 'Courier New', monospace",
+      "usage": "Agent activity logs, API data, timestamps, code blocks, technical labels"
+    },
+    "google_fonts_combined_import": "@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');",
+    "scale": {
+      "xs": {
+        "size": "12px",
+        "usage": "Captions, timestamps, metadata badges, tooltips"
+      },
+      "sm": {
+        "size": "14px",
+        "usage": "Labels, secondary text, table cells, helper text"
+      },
+      "base": {
+        "size": "16px",
+        "usage": "Body text, form inputs, default paragraph text"
+      },
+      "md": {
+        "size": "20px",
+        "usage": "Card titles, sub-headings, emphasized body"
+      },
+      "lg": {
+        "size": "25px",
+        "usage": "Section headings, panel titles"
+      },
+      "xl": {
+        "size": "31px",
+        "usage": "Page titles, screen headings"
+      },
+      "2xl": {
+        "size": "39px",
+        "usage": "Dashboard KPI numbers, large metrics"
+      },
+      "3xl": {
+        "size": "48px",
+        "usage": "Hero sub-headings, major feature headings"
+      },
+      "4xl": {
+        "size": "61px",
+        "usage": "Hero primary heading"
+      },
+      "5xl": {
+        "size": "76px",
+        "usage": "Landing page display statement, maximum impact heading"
+      }
+    },
+    "line_height": {
+      "display_5xl_4xl": "1.02",
+      "heading_3xl_2xl": "1.15",
+      "heading_xl_lg": "1.25",
+      "subheading_md": "1.35",
+      "body_base_sm": "1.65",
+      "caption_xs": "1.40"
+    },
+    "letter_spacing": {
+      "display_5xl": "-0.04em",
+      "display_4xl": "-0.03em",
+      "heading_3xl": "-0.02em",
+      "heading_2xl_xl": "-0.015em",
+      "subheading_lg_md": "-0.01em",
+      "body_base": "0em",
+      "label_sm": "+0.02em",
+      "caption_xs": "+0.04em",
+      "all_caps_labels": "+0.10em"
+    },
+    "font_pairings": {
+      "hero_statement": {
+        "headline": "Syne ExtraBold 800, 5xl, letter-spacing -0.04em",
+        "body": "DM Sans Regular 400, lg, letter-spacing 0"
+      },
+      "dashboard_kpi": {
+        "number": "Syne Bold 700, 2xl, letter-spacing -0.02em",
+        "label": "DM Sans Medium 500, xs, letter-spacing +0.10em, ALL CAPS"
+      },
+      "agent_log_entry": {
+        "action": "JetBrains Mono Regular 400, sm",
+        "timestamp": "JetBrains Mono Regular 400, xs, text_muted"
+      },
+      "section_heading": {
+        "headline": "Syne Bold 700, xl, letter-spacing -0.015em",
+        "subhead": "DM Sans Regular 400, base, text_secondary"
+      }
+    }
+  },
+  "spacing": {
+    "base_unit": "4px",
+    "scale": {
+      "1": "4px",
+      "2": "8px",
+      "3": "12px",
+      "4": "16px",
+      "5": "20px",
+      "6": "24px",
+      "7": "28px",
+      "8": "32px",
+      "9": "36px",
+      "10": "40px",
+      "11": "44px",
+      "12": "48px",
+      "14": "56px",
+      "16": "64px",
+      "18": "72px",
+      "20": "80px",
+      "22": "88px",
+      "24": "96px"
+    }
+  },
+  "border_radius": {
+    "none": "0px",
+    "sm": "4px",
+    "md": "8px",
+    "lg": "16px",
+    "xl": "24px",
+    "2xl": "32px",
+    "full": "9999px"
+  },
+  "shadows": {
+    "sm": "0 1px 2px rgba(0,0,0,0.05)",
+    "md": "0 4px 6px rgba(0,0,0,0.07)",
+    "lg": "0 10px 15px rgba(0,0,0,0.10)",
+    "xl": "0 20px 25px rgba(0,0,0,0.15)",
+    "glass_dark": "0 8px 32px rgba(0,0,0,0.40), inset 0 1px 0 rgba(255,255,255,0.08)",
+    "glass_light": "0 8px 32px rgba(91,76,245,0.10), inset 0 1px 0 rgba(255,255,255,0.80)",
+    "glow_primary": "0 0 20px rgba(91, 76, 245, 0.40), 0 0 60px rgba(91, 76, 245, 0.20)",
+    "glow_secondary": "0 0 20px rgba(0, 212, 255, 0.40), 0 0 60px rgba(0, 212, 255, 0.20)",
+    "glow_accent": "0 0 20px rgba(245, 158, 11, 0.40), 0 0 60px rgba(245, 158, 11, 0.20)",
+    "agent_1_active": "0 0 24px rgba(91, 76, 245, 0.50), 0 4px 16px rgba(0,0,0,0.50)",
+    "agent_2_active": "0 0 24px rgba(0, 212, 255, 0.50), 0 4px 16px rgba(0,0,0,0.50)",
+    "agent_3_active": "0 0 24px rgba(245, 158, 11, 0.50), 0 4px 16px rgba(0,0,0,0.50)"
+  },
+  "glass_liquid_tokens": {
+    "surface": {
+      "bg_opacity": "0.04",
+      "bg_color": "rgba(255, 255, 255, 0.04)",
+      "blur": "16px",
+      "border_opacity": "0.08",
+      "border_color": "rgba(255, 255, 255, 0.08)",
+      "shadow": "0 8px 32px rgba(0,0,0,0.40), inset 0 1px 0 rgba(255,255,255,0.08)"
+    },
+    "surface_hover": {
+      "bg_opacity": "0.07",
+      "bg_color": "rgba(255, 255, 255, 0.07)",
+      "border_opacity": "0.14",
+      "border_color": "rgba(255, 255, 255, 0.14)"
+    },
+    "surface_active": {
+      "bg_opacity": "0.10",
+      "bg_color": "rgba(91, 76, 245, 0.10)",
+      "border_opacity": "0.30",
+      "border_color": "rgba(91, 76, 245, 0.30)"
+    },
+    "modal": {
+      "bg_opacity": "0.08",
+      "bg_color": "rgba(255, 255, 255, 0.08)",
+      "blur": "24px",
+      "border_color": "rgba(255, 255, 255, 0.12)",
+      "shadow": "0 24px 64px rgba(0,0,0,0.60)"
+    },
+    "css_class": ".glass { background: rgba(255,255,255,0.04); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 8px 32px rgba(0,0,0,0.40), inset 0 1px 0 rgba(255,255,255,0.08); }"
+  },
+  "motion": {
+    "duration": {
+      "instant": "50ms",
+      "fast": "150ms",
+      "normal": "200ms",
+      "slow": "350ms",
+      "deliberate": "500ms",
+      "cinematic": "800ms"
+    },
+    "easing": {
+      "standard": "cubic-bezier(0.4, 0, 0.2, 1)",
+      "enter": "cubic-bezier(0, 0, 0.2, 1)",
+      "exit": "cubic-bezier(0.4, 0, 1, 1)",
+      "spring_default": { "type": "spring", "stiffness": 300, "damping": 30 },
+      "spring_bouncy": { "type": "spring", "stiffness": 400, "damping": 20 },
+      "bounce": "cubic-bezier(0.68, -0.55, 0.27, 1.55)"
+    },
+    "animations": {
+      "page_enter": {
+        "initial": { "opacity": 0, "y": 16 },
+        "animate": { "opacity": 1, "y": 0 },
+        "transition": { "duration": 0.35, "ease": "easeOut" }
+      },
+      "card_hover": {
+        "whileHover": { "y": -4, "scale": 1.01 },
+        "transition": { "duration": 0.2, "ease": "easeOut" }
+      },
+      "agent_pulse": {
+        "animate": { "scale": [1, 1.15, 1], "opacity": [0.7, 1, 0.7] },
+        "transition": { "duration": 2, "repeat": "Infinity", "ease": "easeInOut" }
+      },
+      "activity_feed_item": {
+        "initial": { "opacity": 0, "x": -20 },
+        "animate": { "opacity": 1, "x": 0 },
+        "transition": { "duration": 0.3, "ease": "easeOut" }
+      },
+      "notification_bell_shake": {
+        "animate": { "rotate": [-5, 5, -5, 5, -3, 3, 0] },
+        "transition": { "duration": 0.5 }
+      },
+      "modal_enter": {
+        "initial": { "opacity": 0, "scale": 0.95 },
+        "animate": { "opacity": 1, "scale": 1 },
+        "transition": { "duration": 0.2, "ease": "easeOut" }
+      },
+      "drawer_enter": {
+        "initial": { "x": 400 },
+        "animate": { "x": 0 },
+        "transition": { "type": "spring", "stiffness": 300, "damping": 30 }
+      },
+      "stagger_children": {
+        "parent": { "staggerChildren": 0.07 },
+        "child_initial": { "opacity": 0, "y": 20 },
+        "child_animate": { "opacity": 1, "y": 0 }
+      },
+      "kpi_counter": {
+        "description": "Count up from 0 to final value over 1.5s using Framer Motion useMotionValue + useSpring"
+      },
+      "skeleton_shimmer": {
+        "description": "CSS animation: background position moves from -200% to 200% on X axis over 1.5s infinite. Gradient: from transparent to rgba(255,255,255,0.08) to transparent."
+      },
+      "toast_enter": {
+        "initial": { "opacity": 0, "y": -20, "scale": 0.95 },
+        "animate": { "opacity": 1, "y": 0, "scale": 1 },
+        "exit": { "opacity": 0, "scale": 0.95 },
+        "transition": { "duration": 0.25, "ease": "easeOut" }
+      }
+    }
+  },
+  "buttons": {
+    "types": {
+      "primary": {
+        "purpose": "Main CTA. Bold, high contrast. One per screen section max.",
+        "style": "bg: primary gradient, text: white, font-weight: 600",
+        "states": {
+          "default": "bg: #5B4CF5, shadow: glow_primary subtle",
+          "hover": "bg: #7C6FFF, translateY(-1px), shadow: stronger glow",
+          "active": "bg: #3D2FD4, scale(0.97)",
+          "focus": "outline: 2px solid #5B4CF5, outline-offset: 3px",
+          "disabled": "opacity: 0.40, cursor: not-allowed, no hover effects",
+          "loading": "spinner visible left of label, pointer-events: none"
+        }
+      },
+      "secondary": {
+        "purpose": "Supports primary. Less urgent actions.",
+        "style": "border: 1px solid border_strong, bg: glass surface, text: primary",
+        "states": {
+          "default": "border: rgba(255,255,255,0.16), bg: glass",
+          "hover": "border: #5B4CF5, bg: rgba(91,76,245,0.08)",
+          "active": "border: #3D2FD4, scale(0.97)",
+          "focus": "outline: 2px solid #5B4CF5, outline-offset: 3px",
+          "disabled": "opacity: 0.40, cursor: not-allowed"
+        }
+      },
+      "ghost": {
+        "purpose": "Transparent background. Hero sections, image backgrounds, lightweight feel.",
+        "style": "no background, border: 1px solid rgba(255,255,255,0.24), text: white",
+        "states": {
+          "default": "transparent bg, visible border",
+          "hover": "bg: rgba(255,255,255,0.06)",
+          "active": "bg: rgba(255,255,255,0.10), scale(0.97)",
+          "focus": "outline: 2px solid rgba(255,255,255,0.50), outline-offset: 3px"
+        }
+      },
+      "icon": {
+        "purpose": "Compact icon-only actions: share, copy, delete, close.",
+        "rule": "Always include tooltip label for accessibility",
+        "style": "square/circle, glass bg, icon centered",
+        "states": {
+          "default": "bg: glass, icon: text_secondary",
+          "hover": "bg: glass_hover, icon: text_primary, scale(1.05)",
+          "active": "scale(0.95)"
+        }
+      },
+      "text": {
+        "purpose": "Tertiary actions, inline links. No background or border.",
+        "style": "no bg, no border, text: primary color, underline on hover",
+        "states": {
+          "default": "color: text_secondary",
+          "hover": "color: primary, underline slide-in from left (200ms)"
+        }
+      },
+      "destructive": {
+        "purpose": "Irreversible actions ONLY: delete, remove, cancel subscription.",
+        "style": "bg: error color, text: white, always triggers confirmation dialog",
+        "states": {
+          "default": "bg: #EF4444",
+          "hover": "bg: #DC2626, glow: rgba(239,68,68,0.30)",
+          "active": "bg: #B91C1C, scale(0.97)"
+        }
+      },
+      "loading": {
+        "purpose": "Primary/secondary during async operations.",
+        "style": "Same as base type + spinner, interaction disabled",
+        "spec": "Spinner: 16px rotating arc, 1.2s linear infinite, left of text"
+      },
+      "fab": {
+        "purpose": "Single most important mobile action. Floats above content.",
+        "style": "56px circle, primary gradient bg, shadow: glow_primary, fixed bottom-right on mobile",
+        "states": {
+          "default": "elevation: high, shadow prominent",
+          "hover": "scale(1.08), stronger glow",
+          "active": "scale(0.95)"
+        }
+      }
+    },
+    "sizes": {
+      "xs": { "height": "28px", "font_size": "12px", "padding_x": "10px", "radius": "6px", "icon_size": "14px" },
+      "sm": { "height": "36px", "font_size": "14px", "padding_x": "14px", "radius": "8px", "icon_size": "16px" },
+      "md": { "height": "44px", "font_size": "15px", "padding_x": "20px", "radius": "10px", "icon_size": "18px" },
+      "lg": { "height": "52px", "font_size": "16px", "padding_x": "28px", "radius": "12px", "icon_size": "20px" },
+      "xl": { "height": "60px", "font_size": "18px", "padding_x": "36px", "radius": "14px", "icon_size": "22px" }
+    },
+    "design_rules": [
+      "Minimum touch target: 44x44px (WCAG 2.1)",
+      "One primary button per screen section",
+      "All hover transitions: 150ms ease",
+      "All active states: scale(0.97)",
+      "Focus ring: 2px solid primary, 3px offset",
+      "Never use disabled as sole feedback — add tooltip explaining why",
+      "Loading state prevents double-submission",
+      "Destructive button always requires confirmation dialog"
+    ]
+  },
+  "forms": {
+    "component_types": [
+      "TextInput", "PasswordInput", "EmailInput", "NumberInput",
+      "Textarea", "Select", "MultiSelect", "TagInput",
+      "Checkbox", "RadioGroup", "Toggle", "Switch",
+      "DatePicker", "TimePicker", "DateRangePicker",
+      "FileUpload", "SearchInput", "PhoneInput",
+      "OTPInput", "RangeSlider", "ColorPicker",
+      "Autocomplete", "Combobox"
+    ],
+    "states": {
+      "default": "Neutral border rgba(255,255,255,0.16), bg: glass surface",
+      "focused": "Border: #5B4CF5, ring: rgba(91,76,245,0.20), floating label animates up",
+      "filled": "Has value, validation pending, border returns to default",
+      "valid": "Border: success green, checkmark icon right",
+      "error": "Border: #EF4444, error message below, error icon right",
+      "warning": "Border: #F59E0B, warning message below",
+      "disabled": "Opacity: 0.40, cursor: not-allowed, bg: slightly darker",
+      "readonly": "No interaction, subtle bg change, lock icon optional",
+      "loading": "Spinner inside right, interaction disabled"
+    },
+    "design_rules": [
+      "Labels always visible — use floating label (animates above on focus/fill) OR static above-input label",
+      "Error messages: below field, never in tooltip, never beside label",
+      "Group related fields visually with fieldset or role=group",
+      "Password inputs: always include show/hide toggle",
+      "Textareas with limits: show character count bottom-right",
+      "Submit button: bottom-right alignment",
+      "Required fields: asterisk * with legend at form top",
+      "Never disable submit until after first failed submission",
+      "Autofocus first field of every modal form",
+      "Tab order follows visual reading order (top-left to bottom-right)",
+      "All inputs: associated label via htmlFor/id or aria-label",
+      "All error messages: aria-live='polite' or aria-describedby linking to error"
+    ]
+  },
+  "breakpoints": {
+    "xs": "320px",
+    "sm": "480px",
+    "md": "768px",
+    "lg": "1024px",
+    "xl": "1280px",
+    "2xl": "1440px"
+  },
+  "z_index": {
+    "base": 0,
+    "raised": 10,
+    "dropdown": 100,
+    "sticky": 200,
+    "overlay": 300,
+    "modal": 400,
+    "toast": 500,
+    "tooltip": 600
+  },
+  "icons": {
+    "library": "Lucide React",
+    "version": "latest",
+    "install": "npm install lucide-react",
+    "sizes": {
+      "xs": "14px",
+      "sm": "16px",
+      "md": "20px",
+      "lg": "24px",
+      "xl": "32px"
+    },
+    "style_rules": [
+      "strokeWidth: 1.5 (default, slightly lighter than bold)",
+      "strokeWidth: 2 for emphasis or primary actions",
+      "strokeWidth: 1 for decorative or muted contexts",
+      "Never fill icons in icon-only buttons — stroke only",
+      "Icon + label: 8px gap (space-2)"
+    ],
+    "key_icons": {
+      "agent_1": "Search or ScanSearch",
+      "agent_2": "Mail or Send",
+      "agent_3": "Handshake or Zap",
+      "dashboard": "LayoutDashboard",
+      "prospects": "Users",
+      "outreach": "Mail",
+      "projects": "Layers",
+      "payments": "CreditCard",
+      "analytics": "BarChart2",
+      "settings": "Settings2",
+      "notifications": "Bell",
+      "active_status": "Circle (filled, animated pulse)",
+      "idle_status": "Circle (outline)",
+      "error_status": "AlertCircle"
+    }
+  },
+  "agent_system": {
+    "status_badges": {
+      "ACTIVE": {
+        "bg": "rgba(16, 185, 129, 0.15)",
+        "text": "#10B981",
+        "border": "rgba(16, 185, 129, 0.30)",
+        "dot": "#10B981 (animated pulse)",
+        "label": "Active"
+      },
+      "IDLE": {
+        "bg": "rgba(85, 94, 153, 0.15)",
+        "text": "#8B93C4",
+        "border": "rgba(85, 94, 153, 0.30)",
+        "dot": "#555E99",
+        "label": "Idle"
+      },
+      "ERROR": {
+        "bg": "rgba(239, 68, 68, 0.15)",
+        "text": "#EF4444",
+        "border": "rgba(239, 68, 68, 0.30)",
+        "dot": "#EF4444 (animated pulse, faster)",
+        "label": "Error"
+      },
+      "RUNNING": {
+        "bg": "rgba(91, 76, 245, 0.15)",
+        "text": "#7C6FFF",
+        "border": "rgba(91, 76, 245, 0.30)",
+        "dot": "#5B4CF5 (animated pulse)",
+        "label": "Running"
+      }
+    },
+    "activity_indicator": {
+      "style": "12px circle with radial pulse animation",
+      "pulse_scale": "1 → 2",
+      "pulse_opacity": "0.7 → 0",
+      "pulse_duration": "2s infinite",
+      "agent_1_color": "#5B4CF5",
+      "agent_2_color": "#00D4FF",
+      "agent_3_color": "#F59E0B"
+    },
+    "agent_card": {
+      "width": "full (1/3 of available width in grid)",
+      "min_width": "240px",
+      "padding": "24px",
+      "radius": "16px",
+      "style": "glass surface with agent-color top border (3px) on active state"
+    }
+  },
+  "prospect_statuses": {
+    "DISCOVERED": { "color": "#555E99", "bg": "rgba(85,94,153,0.15)" },
+    "ANALYZING": { "color": "#7C6FFF", "bg": "rgba(91,76,245,0.15)" },
+    "QUEUED": { "color": "#8B93C4", "bg": "rgba(139,147,196,0.15)" },
+    "CONTACTED": { "color": "#00D4FF", "bg": "rgba(0,212,255,0.15)" },
+    "OPENED": { "color": "#40E0FF", "bg": "rgba(64,224,255,0.15)" },
+    "REPLIED": { "color": "#A89EFF", "bg": "rgba(168,158,255,0.15)" },
+    "INTERESTED": { "color": "#5B4CF5", "bg": "rgba(91,76,245,0.20)" },
+    "NEGOTIATING": { "color": "#FBB83F", "bg": "rgba(251,184,63,0.15)" },
+    "AGREED": { "color": "#F59E0B", "bg": "rgba(245,158,11,0.20)" },
+    "PAID": { "color": "#10B981", "bg": "rgba(16,185,129,0.20)" },
+    "IN_PROGRESS": { "color": "#34D399", "bg": "rgba(52,211,153,0.15)" },
+    "DELIVERED": { "color": "#059669", "bg": "rgba(5,150,105,0.20)" },
+    "DECLINED": { "color": "#EF4444", "bg": "rgba(239,68,68,0.15)" },
+    "UNRESPONSIVE": { "color": "#7A82CC", "bg": "rgba(122,130,204,0.10)" },
+    "BLACKLISTED": { "color": "#555555", "bg": "rgba(85,85,85,0.15)" }
+  },
+  "notification_priorities": {
+    "LOW": { "border_color": "#2A2F50", "badge_color": "#555E99" },
+    "NORMAL": { "border_color": "#3D4470", "badge_color": "#8B93C4" },
+    "HIGH": { "border_color": "#5B4CF5", "badge_color": "#7C6FFF" },
+    "URGENT": { "border_color": "#F59E0B", "badge_color": "#FBB83F", "pulse": true }
+  },
+  "design_style": {
+    "primary": {
+      "name": "Glass Liquid Design",
+      "description": "Frosted glass surfaces with subtle liquid distortion effects on interaction. Deep space backgrounds with layered glass panels at multiple z-levels. Agent activity represented as flowing light streams. The UI feels like a mission control center inside a premium, intelligent system.",
+      "characteristics": [
+        "Background blur: 12–20px on all glass surfaces",
+        "Surface opacity: 3–8% white overlay",
+        "Border: 1px rgba(255,255,255,0.08) on dark, rgba(0,0,0,0.08) on light",
+        "Liquid hover: slight scale + blur intensity change on hover",
+        "Depth layers: 3+ z-levels visible simultaneously",
+        "Gradient grain: subtle noise texture (opacity 0.03) over gradients"
+      ],
+      "fit_score": "10/10 — Perfect for premium AI SaaS with complex data"
+    },
+    "alternatives": [
+      {
+        "name": "Aurora UI",
+        "fit_score": "9/10",
+        "strengths": "Excellent for hero sections and agent visualizations. Vibrant gradient meshes create energy.",
+        "use_in_nexoris": "Landing page hero, agent flow visualizer background"
+      },
+      {
+        "name": "Glassmorphism",
+        "fit_score": "8/10",
+        "strengths": "Solid depth and layering. Simpler than Glass Liquid.",
+        "use_in_nexoris": "Alternative if Glass Liquid feels too complex to implement"
+      },
+      {
+        "name": "Minimalism",
+        "fit_score": "6/10",
+        "strengths": "Fast-loading, highly readable, professional.",
+        "use_in_nexoris": "Could work for the client portal where warmth > premium"
+      },
+      {
+        "name": "Neumorphism",
+        "fit_score": "4/10",
+        "strengths": "Tactile feel for controls.",
+        "use_in_nexoris": "Too soft for a system that needs to feel fast and powerful"
+      },
+      {
+        "name": "Brutalism",
+        "fit_score": "2/10",
+        "strengths": "Unmistakable, editorial.",
+        "use_in_nexoris": "Wrong energy for a professional SaaS product"
+      }
+    ]
+  },
+  "screen_map": {
+    "public": [
+      { "route": "/", "name": "Landing Page", "type": "Entry" },
+      { "route": "/booking", "name": "Consultation Booking", "type": "Entry" },
+      { "route": "/client/[token]", "name": "Client Portal", "type": "Entry" },
+      { "route": "/client/[token]/pay", "name": "Payment Screen", "type": "Action" },
+      { "route": "/client/[token]/portal", "name": "Project Tracking", "type": "Overview" }
+    ],
+    "auth": [
+      { "route": "/login", "name": "Admin Login", "type": "Entry" },
+      { "route": "/signup", "name": "Admin Registration", "type": "Entry" },
+      { "route": "/forgot-password", "name": "Password Recovery", "type": "Action" },
+      { "route": "/verify-email", "name": "Email Verification", "type": "Feedback" }
+    ],
+    "admin": [
+      { "route": "/dashboard", "name": "Command Center", "type": "Overview" },
+      { "route": "/dashboard/agents", "name": "Agent Management", "type": "Overview" },
+      { "route": "/dashboard/agents/[id]", "name": "Agent Detail", "type": "Detail" },
+      { "route": "/dashboard/prospects", "name": "Prospect Database", "type": "Overview" },
+      { "route": "/dashboard/prospects/[id]", "name": "Prospect Detail", "type": "Detail" },
+      { "route": "/dashboard/outreach", "name": "Email Campaigns", "type": "Overview" },
+      { "route": "/dashboard/projects", "name": "Projects", "type": "Overview" },
+      { "route": "/dashboard/projects/[id]", "name": "Project Detail", "type": "Detail" },
+      { "route": "/dashboard/payments", "name": "Revenue Dashboard", "type": "Overview" },
+      { "route": "/dashboard/analytics", "name": "Analytics", "type": "Overview" },
+      { "route": "/dashboard/notifications", "name": "Notification Center", "type": "Supporting" },
+      { "route": "/dashboard/settings", "name": "Settings", "type": "Supporting" }
+    ],
+    "error": [
+      { "route": "/404", "name": "Not Found", "type": "Error" },
+      { "route": "/403", "name": "Access Denied", "type": "Error" },
+      { "route": "/500", "name": "Server Error", "type": "Error" }
+    ]
+  },
+  "tech_stack": {
+    "frontend": "Next.js 14 (App Router) + TypeScript",
+    "styling": "Tailwind CSS + CSS Custom Properties",
+    "animation": "Framer Motion + GSAP",
+    "state_global": "Zustand",
+    "state_server": "TanStack Query",
+    "auth": "Supabase Auth",
+    "database": "PostgreSQL via Supabase",
+    "realtime": "Supabase Realtime",
+    "backend_api": "Next.js API Routes (Node.js)",
+    "agent_workers": "Python FastAPI (Railway)",
+    "ai_primary": "Google Gemini 1.5 Flash",
+    "ai_secondary": "Anthropic Claude API",
+    "business_search": "Google Places API",
+    "email": "Resend",
+    "payments": "Stripe",
+    "scheduling": "Cal.com API",
+    "storage": "Supabase Storage",
+    "error_monitoring": "Sentry",
+    "analytics": "Vercel Analytics",
+    "deployment_frontend": "Vercel",
+    "deployment_workers": "Railway"
+  }
+}
