@@ -8,9 +8,11 @@ import {
   QueryClientProvider,
   useQuery
 } from '@tanstack/react-query';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import LandingPage from './components/LandingPage';
 import { Sidebar } from './components/dashboard/Sidebar';
 import { TopBar } from './components/dashboard/TopBar';
+import { NotificationCenter } from './components/notifications/NotificationCenter';
 import { AgentStatusCards } from './components/dashboard/AgentStatusCards';
 import { KPIRow } from './components/dashboard/KPIRow';
 import { SplitRow } from './components/dashboard/SplitRow';
@@ -23,25 +25,80 @@ import { PaymentsPage } from './components/dashboard/PaymentsPage';
 import { AnalyticsPage } from './components/dashboard/AnalyticsPage';
 import { SettingsPage } from './components/dashboard/SettingsPage';
 import { NotificationsPage } from './components/dashboard/NotificationsPage';
-import { useNotificationStore } from './store/dashboardStore';
+import { ProfilePage } from './components/dashboard/ProfilePage';
+import { TeamPage } from './components/dashboard/TeamPage';
+import { SubscriptionPage } from './components/dashboard/SubscriptionPage';
+import { HelpPage } from './components/dashboard/HelpPage';
+import { NotFoundPage } from './components/NotFoundPage';
+import { useNotificationStore as useLegacyNotificationStore } from './store/dashboardStore';
+import { useNotificationStore } from './store/notificationStore';
 import { ClientPortal } from './components/client/ClientPortal';
+import { SignInPage } from './components/auth/SignInPage';
+import { SignUpPage } from './components/auth/SignUpPage';
+import { EmailVerification } from './components/auth/EmailVerification';
+import { ForgotPassword } from './components/auth/ForgotPassword';
+import { ThemeProvider } from './components/ThemeProvider';
+import { OnboardingTour } from './components/onboarding/OnboardingTour';
 
 const queryClient = new QueryClient();
 
-const DashboardContent: React.FC<{ activeTab: string }> = ({ activeTab }) => {
-  const { data: stats, isLoading: statsLoading } = useQuery({
+const DashboardHome: React.FC = () => {
+  const { data: stats } = useQuery({
     queryKey: ['stats'],
     queryFn: () => fetch('/api/stats').then(res => res.json()),
     refetchInterval: 5000,
   });
 
-  const { data: prospectsData, isLoading: prospectsLoading } = useQuery({
+  const { data: prospectsData } = useQuery({
     queryKey: ['prospects'],
     queryFn: () => fetch('/api/prospects').then(res => res.json()),
     refetchInterval: 10000,
   });
 
-  const addNotification = useNotificationStore(state => state.addNotification);
+  return (
+    <div className="space-y-6 md:space-y-8 pb-12">
+      <section aria-labelledby="agent-status-title">
+        <h2 id="agent-status-title" className="sr-only">Agent Status</h2>
+        <AgentStatusCards />
+      </section>
+
+      <section aria-labelledby="kpi-title">
+        <h2 id="kpi-title" className="sr-only">Key Performance Indicators</h2>
+        <KPIRow stats={stats || {}} />
+      </section>
+
+      <section aria-labelledby="funnel-activity-title">
+        <h2 id="funnel-activity-title" className="sr-only">Conversion Funnel and Live Activity</h2>
+        <SplitRow funnel={stats?.funnel || []} />
+      </section>
+
+      <section aria-labelledby="revenue-title">
+        <h2 id="revenue-title" className="sr-only">Revenue Analytics</h2>
+        <RevenueChart />
+      </section>
+
+      <section aria-labelledby="prospects-title" className="overflow-x-auto">
+        <h2 id="prospects-title" className="sr-only">Recent Prospects</h2>
+        <div className="min-w-[600px] lg:min-w-0">
+          <ProspectsTable data={prospectsData?.prospects || []} />
+        </div>
+      </section>
+    </div>
+  );
+};
+
+const DashboardLayout: React.FC = () => {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Extract active tab from path (e.g. /app/agents -> agents)
+  const activeTab = location.pathname.split('/')[2] || 'dashboard';
+
+  const addNotification = useLegacyNotificationStore(state => state.addNotification);
+  const setNotifications = useNotificationStore((s) => s.setNotifications);
+  const setUnreadCount = useNotificationStore((s) => s.setUnreadCount);
 
   // Simulate real-time activity
   useEffect(() => {
@@ -66,287 +123,197 @@ const DashboardContent: React.FC<{ activeTab: string }> = ({ activeTab }) => {
     return () => clearInterval(interval);
   }, [addNotification]);
 
-  if (activeTab === 'agents') return <AgentsPage />;
-  if (activeTab === 'outreach') return <OutreachPage />;
-  if (activeTab === 'projects') return <ProjectsPage />;
-  if (activeTab === 'payments') return <PaymentsPage />;
-  if (activeTab === 'analytics') return <AnalyticsPage />;
-  if (activeTab === 'settings') return <SettingsPage />;
-  if (activeTab === 'notifications') return <NotificationsPage />;
-  if (activeTab === 'prospects') return <ProspectsTable data={prospectsData?.prospects || []} />;
-
-  if (activeTab !== 'dashboard') {
-    return (
-      <div className="flex flex-col items-center justify-center h-[60vh] text-zinc-500">
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="text-center"
-        >
-          <h2 className="text-2xl font-display font-bold text-white mb-2 uppercase italic tracking-tighter">Section Under Construction</h2>
-          <p className="text-sm">The {activeTab} module is being optimized for mission-critical performance.</p>
-        </motion.div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8 pb-12">
-      {/* Agent Status Section */}
-      <section aria-labelledby="agent-status-title">
-        <h2 id="agent-status-title" className="sr-only">Agent Status</h2>
-        <AgentStatusCards />
-      </section>
-
-      {/* KPI Section */}
-      <section aria-labelledby="kpi-title">
-        <h2 id="kpi-title" className="sr-only">Key Performance Indicators</h2>
-        <KPIRow stats={stats || {}} />
-      </section>
-
-      {/* Funnel & Activity Section */}
-      <section aria-labelledby="funnel-activity-title">
-        <h2 id="funnel-activity-title" className="sr-only">Conversion Funnel and Live Activity</h2>
-        <SplitRow />
-      </section>
-
-      {/* Revenue Section */}
-      <section aria-labelledby="revenue-title">
-        <h2 id="revenue-title" className="sr-only">Revenue Analytics</h2>
-        <RevenueChart />
-      </section>
-
-      {/* Prospects Section */}
-      <section aria-labelledby="prospects-title">
-        <h2 id="prospects-title" className="sr-only">Recent Prospects</h2>
-        <ProspectsTable data={prospectsData?.prospects || []} />
-      </section>
-    </div>
-  );
-};
-
-const SignInPage: React.FC<{ onSuccess: () => void; goSignup: () => void }> = ({ onSuccess, goSignup }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      onSuccess();
-    }, 700);
-  };
-  return (
-    <div className="min-h-screen bg-brand-bg text-zinc-100 flex items-center justify-center p-6">
-      <div className="w-full max-w-md glass rounded-3xl p-8 border-white/10">
-        <h1 className="text-2xl font-display font-bold italic mb-6">Sign In</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-xs text-zinc-400">Email</label>
-            <input value={email} onChange={e => setEmail(e.target.value)} type="email" required className="w-full mt-1 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm focus:outline-none" />
-          </div>
-          <div>
-            <label className="text-xs text-zinc-400">Password</label>
-            <input value={password} onChange={e => setPassword(e.target.value)} type="password" required className="w-full mt-1 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm focus:outline-none" />
-          </div>
-          <button type="submit" disabled={loading} className="w-full py-3 rounded-2xl bg-brand-primary text-white font-bold">
-            {loading ? 'Signing in…' : 'Sign In'}
-          </button>
-        </form>
-        <div className="mt-4 text-xs text-zinc-500">
-          Don’t have an account? <button onClick={goSignup} className="text-brand-secondary underline">Sign Up</button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const SignUpPage: React.FC<{ onSuccess: () => void; goSignin: () => void }> = ({ onSuccess, goSignin }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [loading, setLoading] = useState(false);
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      onSuccess();
-    }, 900);
-  };
-  return (
-    <div className="min-h-screen bg-brand-bg text-zinc-100 flex items-center justify-center p-6">
-      <div className="w-full max-w-md glass rounded-3xl p-8 border-white/10">
-        <h1 className="text-2xl font-display font-bold italic mb-6">Create Account</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-xs text-zinc-400">Full Name</label>
-            <input value={name} onChange={e => setName(e.target.value)} type="text" required className="w-full mt-1 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm focus:outline-none" />
-          </div>
-          <div>
-            <label className="text-xs text-zinc-400">Email</label>
-            <input value={email} onChange={e => setEmail(e.target.value)} type="email" required className="w-full mt-1 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm focus:outline-none" />
-          </div>
-          <div>
-            <label className="text-xs text-zinc-400">Password</label>
-            <input value={password} onChange={e => setPassword(e.target.value)} type="password" required className="w-full mt-1 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm focus:outline-none" />
-          </div>
-          <button type="submit" disabled={loading} className="w-full py-3 rounded-2xl bg-brand-primary text-white font-bold">
-            {loading ? 'Creating…' : 'Sign Up'}
-          </button>
-        </form>
-        <div className="mt-4 text-xs text-zinc-500">
-          Already have an account? <button onClick={goSignin} className="text-brand-secondary underline">Sign In</button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const BYPASS_AUTH = true;
-
-const App: React.FC = () => {
-  const [showLanding, setShowLanding] = useState(true);
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [portalToken, setPortalToken] = useState<string | null>(null);
-  const [currentPath, setCurrentPath] = useState<string>(typeof window !== 'undefined' ? window.location.pathname : '/');
-  const [hash, setHash] = useState<string>(typeof window !== 'undefined' ? window.location.hash.replace('#', '') : '');
-
+  // Load notifications
   useEffect(() => {
-    const path = window.location.pathname;
-    if (path.startsWith('/client/')) {
-      const token = path.split('/')[2];
-      if (token) {
-        setPortalToken(token);
-        setShowLanding(false);
-      }
-    } else {
-      setCurrentPath(path);
-      setHash(window.location.hash.replace('#', ''));
-      if (BYPASS_AUTH && (path === '/login' || path === '/signup' || path === '/app')) {
-        setShowLanding(false);
-      }
-    }
-    const onPop = () => {
-      setCurrentPath(window.location.pathname);
-      setHash(window.location.hash.replace('#', ''));
+    let t: any;
+    const load = async () => {
+      try {
+        const r = await fetch(`/api/notifications?page=1&limit=20`);
+        const j = await r.json();
+        if (j?.data?.notifications) setNotifications(j.data.notifications);
+        if (typeof j?.data?.unread_count === "number") setUnreadCount(j.data.unread_count);
+      } catch {}
     };
-    window.addEventListener('popstate', onPop);
-    return () => window.removeEventListener('popstate', onPop);
+    const poll = async () => {
+      try {
+        const r = await fetch(`/api/notifications/unread-count`);
+        const j = await r.json();
+        if (typeof j?.count === "number") setUnreadCount(j.count);
+      } catch {}
+      t = setTimeout(poll, 30000);
+    };
+    load();
+    poll();
+    return () => clearTimeout(t);
   }, []);
 
-  if (portalToken) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <ClientPortal token={portalToken} />
-      </QueryClientProvider>
-    );
-  }
-
-  if (!BYPASS_AUTH && currentPath === '/login') {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <SignInPage 
-          onSuccess={() => {
-            setShowLanding(false);
-            history.pushState({}, '', '/app');
-          }}
-          goSignup={() => { history.pushState({}, '', '/signup'); setCurrentPath('/signup'); }}
+  return (
+    <div className="flex min-h-screen bg-brand-bg text-zinc-300 font-body selection:bg-brand-primary/30 selection:text-white overflow-x-hidden">
+      <OnboardingTour />
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={(tab) => {
+          navigate(tab === 'dashboard' ? '/app' : `/app/${tab}`);
+          setIsMobileMenuOpen(false);
+        }} 
+        isCollapsed={isCollapsed}
+        setIsCollapsed={setIsCollapsed}
+        isMobileOpen={isMobileMenuOpen}
+        setIsMobileOpen={setIsMobileMenuOpen}
+        onLogout={() => navigate('/')}
+      />
+      
+      <main className={`flex-grow transition-all duration-300 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-[240px]'} ml-0`}>
+        <TopBar 
+          activeTab={activeTab} 
+          onMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         />
-      </QueryClientProvider>
-    );
-  }
+        <NotificationCenter />
+        
+        <div className="p-4 md:p-8 max-w-[1600px] mx-auto">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Routes>
+                <Route index element={<DashboardHome />} />
+                <Route path="agents" element={<AgentsPage />} />
+                <Route path="prospects" element={<ProspectsContainer />} />
+                <Route path="outreach" element={<OutreachPage />} />
+                <Route path="projects" element={<ProjectsPage />} />
+                <Route path="payments" element={<PaymentsPage />} />
+                <Route path="analytics" element={<AnalyticsContainer />} />
+                <Route path="settings" element={<SettingsPage />} />
+                <Route path="notifications" element={<NotificationsPage />} />
+                <Route path="profile" element={<ProfilePage />} />
+                <Route path="team" element={<TeamPage />} />
+                <Route path="subscription" element={<SubscriptionPage />} />
+                <Route path="help" element={<HelpPage />} />
+                <Route path="*" element={<NotFoundPage />} />
+              </Routes>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </main>
 
-  if (!BYPASS_AUTH && currentPath === '/signup') {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <SignUpPage 
-          onSuccess={() => {
-            setShowLanding(false);
-            history.pushState({}, '', '/app');
-          }}
-          goSignin={() => { history.pushState({}, '', '/login'); setCurrentPath('/login'); }}
-        />
-      </QueryClientProvider>
-    );
-  }
+      {/* Global Aurora Background */}
+      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-brand-primary/10 blur-[120px] animate-pulse" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-brand-secondary/10 blur-[120px] animate-pulse" style={{ animationDelay: '2s' }} />
+      </div>
+    </div>
+  );
+};
 
+// Wrapper components to fetch data needed by pages
+const ProspectsContainer = () => {
+  const { data } = useQuery({
+    queryKey: ['prospects'],
+    queryFn: () => fetch('/api/prospects').then(res => res.json()),
+  });
+  return <ProspectsTable data={data?.prospects || []} />;
+};
+
+const AnalyticsContainer = () => {
+  const { data: stats } = useQuery({
+    queryKey: ['stats'],
+    queryFn: () => fetch('/api/stats').then(res => res.json()),
+  });
+  const { data: prospects } = useQuery({
+    queryKey: ['prospects'],
+    queryFn: () => fetch('/api/prospects').then(res => res.json()),
+  });
+  return <AnalyticsPage stats={stats || {}} prospects={prospects?.prospects || []} />;
+};
+
+const AppRoutes = () => {
+  return (
+    <Routes>
+      <Route path="/" element={<LandingWrapper />} />
+      <Route path="/login" element={<SignInWrapper />} />
+      <Route path="/signup" element={<SignUpWrapper />} />
+      <Route path="/verify-email" element={<VerifyWrapper />} />
+      <Route path="/forgot-password" element={<ForgotWrapper />} />
+      <Route path="/client/:token" element={<ClientPortalWrapper />} />
+      <Route path="/app/*" element={<DashboardLayout />} />
+      {/* Fallback for old hash routes or other paths */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+};
+
+const LandingWrapper = () => {
+  const navigate = useNavigate();
+  return (
+    <LandingPage 
+      onEnterApp={() => navigate('/login')} 
+    />
+  );
+};
+
+const SignInWrapper = () => {
+  const navigate = useNavigate();
+  return (
+    <SignInPage 
+      onSuccess={() => navigate('/app')}
+      goSignup={() => navigate('/signup')}
+      goForgotPassword={() => navigate('/forgot-password')}
+    />
+  );
+};
+
+const SignUpWrapper = () => {
+  const navigate = useNavigate();
+  return (
+    <SignUpPage 
+      onSuccess={() => navigate('/verify-email')}
+      goSignin={() => navigate('/login')}
+    />
+  );
+};
+
+const VerifyWrapper = () => {
+  const navigate = useNavigate();
+  return (
+    <EmailVerification 
+      email="user@example.com"
+      onSuccess={() => navigate('/app')}
+      onBack={() => navigate('/signup')}
+    />
+  );
+};
+
+const ForgotWrapper = () => {
+  const navigate = useNavigate();
+  return (
+    <ForgotPassword 
+      onBack={() => navigate('/login')}
+    />
+  );
+};
+
+const ClientPortalWrapper = () => {
+  const { token } = React.useMemo(() => {
+    const path = window.location.pathname;
+    return { token: path.split('/')[2] };
+  }, []);
+  
+  if (!token) return <Navigate to="/" />;
+  return <ClientPortal token={token} />;
+};
+
+const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen bg-brand-bg text-zinc-300 font-body selection:bg-brand-primary/30 selection:text-white overflow-x-hidden">
-        <AnimatePresence mode="wait">
-          {showLanding ? (
-            <motion.div
-              key="landing"
-              initial={{ opacity: 1 }}
-              exit={{ opacity: 0, scale: 1.1 }}
-              transition={{ duration: 0.5 }}
-              className="fixed inset-0 z-[100] overflow-y-auto"
-            >
-              <LandingPage 
-                onEnterApp={() => setShowLanding(false)} 
-                initialSection={
-                  currentPath === '/how-it-works' ? 'how-it-works' :
-                  currentPath === '/pricing' ? 'pricing' :
-                  currentPath === '/demo' ? 'demo' :
-                  currentPath === '/faq' ? 'faq' :
-                  hash ? hash : undefined
-                }
-              />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="dashboard"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex min-h-screen"
-            >
-              <Sidebar 
-                activeTab={activeTab} 
-                setActiveTab={(tab) => {
-                  setActiveTab(tab);
-                  setIsMobileMenuOpen(false);
-                }} 
-                isCollapsed={isCollapsed}
-                setIsCollapsed={setIsCollapsed}
-                isMobileOpen={isMobileMenuOpen}
-                setIsMobileOpen={setIsMobileMenuOpen}
-                onLogout={() => setShowLanding(true)}
-              />
-              
-              <main className={`flex-grow transition-all duration-300 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-[240px]'} ml-0`}>
-                <TopBar 
-                  activeTab={activeTab} 
-                  onMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                />
-                
-                <div className="p-4 md:p-8 max-w-[1600px] mx-auto">
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={activeTab}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <DashboardContent activeTab={activeTab} />
-                    </motion.div>
-                  </AnimatePresence>
-                </div>
-              </main>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Global Aurora Background */}
-        <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-brand-primary/10 blur-[120px] animate-pulse" />
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-brand-secondary/10 blur-[120px] animate-pulse" style={{ animationDelay: '2s' }} />
-        </div>
-      </div>
+      <ThemeProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 };

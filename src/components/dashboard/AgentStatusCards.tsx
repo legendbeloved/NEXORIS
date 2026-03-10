@@ -1,10 +1,61 @@
 import React from 'react';
 import { Zap, Play, Square } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useAgentStore } from '../../store/dashboardStore';
+import { useAgentStore, useAgentConfig } from '../../store/dashboardStore';
 
 export const AgentStatusCards: React.FC = () => {
-  const { agents, toggleAgent } = useAgentStore();
+  const { agents, toggleAgent, updateAgent } = useAgentStore();
+  const { config } = useAgentConfig();
+
+  const handleToggle = async (id: number) => {
+    const agent = agents.find(a => a.id === id);
+    if (!agent) return;
+
+    const newStatus = agent.status === 'ACTIVE' ? 'IDLE' : 'ACTIVE';
+    toggleAgent(id); // Optimistic update
+
+    if (newStatus === 'ACTIVE') {
+      try {
+        let endpoint = '';
+        let payload = {};
+
+        if (id === 1) {
+          endpoint = '/api/agents/discovery';
+          payload = { category: config.global.categories[0] || 'SaaS', location: config.global.targetRegion || 'San Francisco, CA' };
+        } else if (id === 2) {
+          endpoint = '/api/agents/outreach';
+        }
+
+        if (endpoint) {
+          updateAgent(id, { currentAction: 'Initializing AI core...' });
+          
+          fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          })
+          .then(async (res) => {
+            if (res.ok) {
+              const data = await res.json();
+              if (data.status === 'success') {
+                updateAgent(id, { currentAction: 'Task completed successfully', status: 'IDLE', progress: 100 });
+              } else {
+                updateAgent(id, { status: 'ERROR', currentAction: 'Operation failed' });
+              }
+            } else {
+              updateAgent(id, { status: 'ERROR', currentAction: 'Server error' });
+            }
+          })
+          .catch((err) => {
+            console.error('Agent activation error:', err);
+            updateAgent(id, { status: 'ERROR', currentAction: 'Connection refused' });
+          });
+        }
+      } catch (e) {
+        updateAgent(id, { status: 'ERROR' });
+      }
+    }
+  };
 
   const getAgentColor = (id: number) => {
     switch (id) {
@@ -16,7 +67,7 @@ export const AgentStatusCards: React.FC = () => {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
       {agents.map((agent) => {
         const color = getAgentColor(agent.id);
         const isActive = agent.status === 'ACTIVE';
@@ -27,7 +78,7 @@ export const AgentStatusCards: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: agent.id * 0.1 }}
-            className={`relative p-6 rounded-3xl glass border-white/10 transition-all duration-500 overflow-hidden group ${
+            className={`relative p-5 md:p-6 rounded-3xl glass border-white/10 transition-all duration-500 overflow-hidden group ${
               isActive ? 'shadow-[0_0_40px_rgba(0,0,0,0.3)]' : ''
             }`}
           >
@@ -41,16 +92,16 @@ export const AgentStatusCards: React.FC = () => {
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <div 
-                    className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 ${
+                    className={`w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center transition-all duration-500 ${
                       isActive ? 'text-white shadow-lg' : 'bg-zinc-800 text-zinc-500'
                     }`}
                     style={isActive ? { backgroundColor: color, boxShadow: `0 0 20px ${color}40` } : {}}
                   >
-                    <Zap size={24} fill={isActive ? 'currentColor' : 'none'} />
+                    <Zap size={20} className="md:w-6 md:h-6" fill={isActive ? 'currentColor' : 'none'} />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-xl font-display font-bold text-white italic">
+                      <h3 className="text-lg md:text-xl font-display font-bold text-white italic truncate max-w-[120px] sm:max-w-none">
                         Agent {agent.id}: {agent.name}
                       </h3>
                       <div className={`w-2 h-2 rounded-full shrink-0 ${
@@ -72,12 +123,12 @@ export const AgentStatusCards: React.FC = () => {
                 </div>
 
                 <button 
-                  onClick={() => toggleAgent(agent.id)}
-                  className={`p-3 rounded-xl transition-all ${
+                  onClick={() => handleToggle(agent.id)}
+                  className={`p-2.5 md:p-3 rounded-xl transition-all ${
                     isActive ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20' : 'bg-green-500/10 text-green-500 hover:bg-green-500/20'
                   }`}
                 >
-                  {isActive ? <Square size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
+                  {isActive ? <Square size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
                 </button>
               </div>
 

@@ -1,11 +1,72 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Bot, Zap, Settings, Play, Square, RefreshCcw, Cpu, Brain, MessageSquare } from 'lucide-react';
+import { Bot, Zap, Settings, Play, Square, RefreshCcw, Cpu, Brain, MessageSquare, Send } from 'lucide-react';
 import { useAgentStore, useAgentConfig } from '../../store/dashboardStore';
 
 export const AgentsPage: React.FC = () => {
-  const { agents, toggleAgent } = useAgentStore();
+  const { agents, toggleAgent, updateAgent } = useAgentStore();
   const { config, setConfig } = useAgentConfig();
+  const [syncing, setSyncing] = React.useState(false);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      await fetch('/api/config', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      });
+      // Give some visual feedback
+      setTimeout(() => setSyncing(false), 1000);
+    } catch (e) {
+      setSyncing(false);
+    }
+  };
+
+  const handleActivate = async (id: number) => {
+    const agent = agents.find(a => a.id === id);
+    const becomingActive = agent?.status !== 'ACTIVE';
+    
+    toggleAgent(id);
+
+    if (becomingActive) {
+      updateAgent(id, { currentAction: 'Initializing AI routines...', progress: 10 });
+      try {
+        let endpoint = '';
+        let payload = {};
+        
+        if (id === 1) {
+          endpoint = '/api/agents/discovery';
+          payload = { category: config.global.categories[0] || 'SaaS', location: config.global.targetRegion || 'San Francisco, CA' };
+        } else if (id === 2) {
+          endpoint = '/api/agents/outreach';
+        }
+        
+        if (endpoint) {
+          updateAgent(id, { currentAction: 'Processing mission parameters...', progress: 40 });
+          const res = await fetch(endpoint, { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          
+          if (res.ok) {
+            updateAgent(id, { currentAction: 'Task completed successfully.', progress: 100 });
+            setTimeout(() => {
+              toggleAgent(id); // Deactivate after completion
+              updateAgent(id, { currentAction: 'Waiting for instructions...', progress: 0 });
+            }, 3000);
+          } else {
+            updateAgent(id, { status: 'ERROR', currentAction: 'Failed to execute task.' });
+          }
+        }
+      } catch (e) {
+        updateAgent(id, { status: 'ERROR', currentAction: 'Connection error.' });
+      }
+    } else {
+      updateAgent(id, { currentAction: 'Standby.', progress: 0 });
+    }
+  };
 
   const agentDetails = [
     {
@@ -44,9 +105,13 @@ export const AgentsPage: React.FC = () => {
           <h1 className="text-3xl font-display font-bold text-white italic tracking-tight">AI Agent Squad</h1>
           <p className="text-zinc-500 mt-1 text-sm">Manage and monitor your autonomous workforce.</p>
         </div>
-        <button className="px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2">
-          <RefreshCcw size={14} />
-          Sync Agents
+        <button 
+          onClick={handleSync}
+          disabled={syncing}
+          className="px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2 disabled:opacity-50"
+        >
+          <RefreshCcw size={14} className={syncing ? 'animate-spin' : ''} />
+          {syncing ? 'Syncing...' : 'Sync Agents'}
         </button>
       </div>
 
@@ -127,6 +192,24 @@ export const AgentsPage: React.FC = () => {
                     <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Efficiency</span>
                     <span className="text-xs font-mono text-white">{detail.stats.efficiency}</span>
                   </div>
+                  {isActive && agent?.progress > 0 && (
+                    <div className="p-3 rounded-xl bg-brand-primary/10 border border-brand-primary/20">
+                      <div className="flex justify-between mb-1.5">
+                        <span className="text-[10px] text-brand-primary uppercase font-bold tracking-widest">Mission Progress</span>
+                        <span className="text-[10px] font-mono text-brand-primary">{agent.progress}%</span>
+                      </div>
+                      <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${agent.progress}%` }}
+                          className="h-full bg-brand-primary"
+                        />
+                      </div>
+                      <p className="mt-2 text-[10px] text-zinc-400 font-mono italic">
+                        &gt; {agent.currentAction}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -136,7 +219,7 @@ export const AgentsPage: React.FC = () => {
                   <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-widest">Capabilities</h3>
                   <div className="flex items-center gap-2">
                     <button 
-                      onClick={() => toggleAgent(detail.id)}
+                      onClick={() => handleActivate(detail.id)}
                       className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${
                         isActive ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-green-500/10 text-green-500 border border-green-500/20'
                       }`}
@@ -174,6 +257,9 @@ export const AgentsPage: React.FC = () => {
                         <span className="px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] text-zinc-400">
                           Revenue Weight: <span className="text-white font-bold">{config.agent1.scoringWeightRevenue}%</span>
                         </span>
+                        <span className={`px-3 py-1 rounded-lg border text-[10px] ${config.agent1.competitorAnalysis ? 'bg-brand-primary/10 border-brand-primary/30 text-brand-primary' : 'bg-white/5 border-white/10 text-zinc-500'}`}>
+                          Competitor Intel: <span className="font-bold">{config.agent1.competitorAnalysis ? 'ON' : 'OFF'}</span>
+                        </span>
                       </>
                     )}
                     {detail.id === 2 && (
@@ -183,6 +269,12 @@ export const AgentsPage: React.FC = () => {
                         </span>
                         <span className="px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] text-zinc-400">
                           Tone: <span className="text-white font-bold">{config.agent2.brandTone}</span>
+                        </span>
+                        <span className="px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] text-zinc-400">
+                          Profile: <span className="text-white font-bold">{config.agent2.personalityProfile}</span>
+                        </span>
+                        <span className={`px-3 py-1 rounded-lg border text-[10px] ${config.agent2.smartScheduling ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500' : 'bg-white/5 border-white/10 text-zinc-500'}`}>
+                          Smart Sched: <span className="font-bold">{config.agent2.smartScheduling ? 'ON' : 'OFF'}</span>
                         </span>
                         <span className="px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] text-zinc-400">
                           Limit: <span className="text-white font-bold">{config.agent2.dailySendLimit}/day</span>
@@ -230,21 +322,3 @@ export const AgentsPage: React.FC = () => {
     </div>
   );
 };
-
-const Send = (props: any) => (
-  <svg
-    {...props}
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="m22 2-7 20-4-9-9-4Z" />
-    <path d="M22 2 11 13" />
-  </svg>
-);

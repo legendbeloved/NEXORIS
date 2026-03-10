@@ -15,7 +15,7 @@ import {
   Area
 } from 'recharts';
 
-const data = [
+const fallbackData = [
   { name: 'Mon', prospects: 120, outreach: 45, deals: 2 },
   { name: 'Tue', prospects: 150, outreach: 52, deals: 3 },
   { name: 'Wed', prospects: 180, outreach: 61, deals: 1 },
@@ -25,7 +25,10 @@ const data = [
   { name: 'Sun', prospects: 110, outreach: 35, deals: 1 },
 ];
 
-export const AnalyticsPage: React.FC = () => {
+export const AnalyticsPage: React.FC<{ stats: any, prospects: any[] }> = ({ stats, prospects }) => {
+  const conversionRate = stats.totalProspects > 0 ? ((stats.dealsClosed / stats.totalProspects) * 100).toFixed(1) + '%' : '0%';
+  const avgDealSize = stats.dealsClosed > 0 ? '$' + Math.round(stats.revenue / stats.dealsClosed).toLocaleString() : '$0';
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -43,10 +46,10 @@ export const AnalyticsPage: React.FC = () => {
       {/* High Level Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
-          { label: 'Conversion Rate', value: '4.2%', trend: '+0.8%', icon: Target, color: '#5B4CF5' },
-          { label: 'Avg. Deal Size', value: '$1,150', trend: '+$120', icon: Zap, color: '#F59E0B' },
-          { label: 'Response Rate', value: '18.5%', trend: '+2.1%', icon: Mail, color: '#00D4FF' },
-          { label: 'Active Pipeline', value: '$42.5k', trend: '+$8.2k', icon: TrendingUp, color: '#10B981' },
+          { label: 'Conversion Rate', value: conversionRate, trend: '+0.8%', icon: Target, color: '#5B4CF5' },
+          { label: 'Avg. Deal Size', value: avgDealSize, trend: '+$120', icon: Zap, color: '#F59E0B' },
+          { label: 'Total Prospects', value: stats.totalProspects?.toLocaleString() || '0', trend: '+24', icon: Users, color: '#00D4FF' },
+          { label: 'Revenue Generated', value: '$' + (stats.revenue?.toLocaleString() || '0'), trend: '+$8.2k', icon: TrendingUp, color: '#10B981' },
         ].map((stat, i) => (
           <motion.div
             key={i}
@@ -83,7 +86,7 @@ export const AnalyticsPage: React.FC = () => {
           </div>
           <div className="flex-grow">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data}>
+              <AreaChart data={fallbackData}>
                 <defs>
                   <linearGradient id="colorProspects" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#00D4FF" stopOpacity={0.3}/>
@@ -98,36 +101,36 @@ export const AnalyticsPage: React.FC = () => {
                 <XAxis dataKey="name" stroke="#52525b" fontSize={10} tickLine={false} axisLine={false} />
                 <YAxis stroke="#52525b" fontSize={10} tickLine={false} axisLine={false} />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#09090b', border: '1px solid #ffffff10', borderRadius: '12px' }}
+                  contentStyle={{ backgroundColor: '#09090b', border: '1px solid #27272a', borderRadius: '12px' }}
                   itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
                 />
-                <Area type="monotone" dataKey="prospects" stroke="#00D4FF" fillOpacity={1} fill="url(#colorProspects)" strokeWidth={3} />
-                <Area type="monotone" dataKey="outreach" stroke="#5B4CF5" fillOpacity={1} fill="url(#colorOutreach)" strokeWidth={3} />
+                <Area type="monotone" dataKey="prospects" stroke="#00D4FF" fillOpacity={1} fill="url(#colorProspects)" strokeWidth={2} />
+                <Area type="monotone" dataKey="outreach" stroke="#5B4CF5" fillOpacity={1} fill="url(#colorOutreach)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Deals Chart */}
+        {/* Funnel Chart */}
         <div className="glass p-8 rounded-[32px] border-white/10 h-[400px] flex flex-col">
           <div className="flex items-center justify-between mb-8">
             <h3 className="text-lg font-display font-bold text-white italic flex items-center gap-2">
-              <BarChart size={20} className="text-brand-accent" />
-              Deals Closed by Day
+              <Target size={20} className="text-brand-secondary" />
+              Conversion Efficiency
             </h3>
-            <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Performance</span>
+            <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">By Stage</span>
           </div>
           <div className="flex-grow">
             <ResponsiveContainer width="100%" height="100%">
-              <ReBarChart data={data}>
+              <ReBarChart data={stats.funnel || []}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
-                <XAxis dataKey="name" stroke="#52525b" fontSize={10} tickLine={false} axisLine={false} />
+                <XAxis dataKey="stage" stroke="#52525b" fontSize={10} tickLine={false} axisLine={false} />
                 <YAxis stroke="#52525b" fontSize={10} tickLine={false} axisLine={false} />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#09090b', border: '1px solid #ffffff10', borderRadius: '12px' }}
-                  cursor={{ fill: '#ffffff05' }}
+                  contentStyle={{ backgroundColor: '#09090b', border: '1px solid #27272a', borderRadius: '12px' }}
+                  itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
                 />
-                <Bar dataKey="deals" fill="#F59E0B" radius={[4, 4, 0, 0]} barSize={30} />
+                <Bar dataKey="count" fill="#5B4CF5" radius={[4, 4, 0, 0]} barSize={30} />
               </ReBarChart>
             </ResponsiveContainer>
           </div>

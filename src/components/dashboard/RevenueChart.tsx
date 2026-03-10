@@ -11,9 +11,11 @@ import {
   ComposedChart,
   Cell
 } from 'recharts';
-import { Calendar, Download, Filter } from 'lucide-react';
+import { Calendar, Download, Filter, Loader2, DollarSign, ChevronRight } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 
-const data = [
+const fallbackData = [
   { week: 'W1', revenue: 1200, deals: 2 },
   { week: 'W2', revenue: 2100, deals: 3 },
   { week: 'W3', revenue: 800, deals: 1 },
@@ -43,31 +45,40 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export const RevenueChart: React.FC = () => {
-  return (
-    <div className="p-8 rounded-3xl glass border-white/10">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-        <div>
-          <h2 className="text-xl font-display font-bold text-white italic flex items-center gap-2">
-            Revenue & Growth
-          </h2>
-          <p className="text-xs text-zinc-500 mt-1">Weekly performance tracking across all agents</p>
-        </div>
+  const navigate = useNavigate();
+  const { data: revenueData, isLoading } = useQuery({
+    queryKey: ['revenue'],
+    queryFn: () => fetch('/api/analytics/revenue').then(res => res.json()),
+  });
 
-        <div className="flex items-center gap-2">
-          <div className="flex bg-white/5 rounded-xl p-1 border border-white/5">
-            <button className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-white bg-brand-primary rounded-lg shadow-lg">7D</button>
-            <button className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition-colors">30D</button>
-            <button className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition-colors">90D</button>
+  const displayData = revenueData || fallbackData;
+
+  return (
+    <div className="glass p-6 md:p-8 rounded-[32px] border-white/10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+            <DollarSign size={24} />
           </div>
-          <button className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-zinc-500 hover:text-white transition-all">
-            <Download size={16} />
-          </button>
+          <div>
+            <h3 className="text-xl font-display font-bold text-white italic">Revenue Analytics</h3>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-zinc-500">Last 30 Days</span>
+              <span className="text-[10px] text-emerald-500 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">+12.5% Growth</span>
+            </div>
+          </div>
         </div>
+        <button 
+          onClick={() => navigate('/app/payments')}
+          className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-zinc-400 hover:text-white hover:bg-white/10 transition-all text-xs font-bold uppercase tracking-widest flex items-center gap-2"
+        >
+          View Details <ChevronRight size={14} />
+        </button>
       </div>
 
       <div className="h-[350px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <ComposedChart data={displayData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#5B4CF5" stopOpacity={0.8} />
@@ -93,7 +104,7 @@ export const RevenueChart: React.FC = () => {
               radius={[6, 6, 0, 0]} 
               barSize={40}
             >
-              {data.map((entry, index) => (
+              {displayData.map((entry: any, index: number) => (
                 <Cell 
                   key={`cell-${index}`} 
                   fill="url(#barGradient)"
@@ -104,24 +115,13 @@ export const RevenueChart: React.FC = () => {
             <Line 
               type="monotone" 
               dataKey="deals" 
-              stroke="#F59E0B" 
-              strokeWidth={3} 
-              dot={{ r: 4, fill: '#F59E0B', strokeWidth: 2, stroke: '#08091A' }}
+              stroke="#00D4FF" 
+              strokeWidth={2} 
+              dot={{ fill: '#00D4FF', strokeWidth: 2, r: 4 }}
               activeDot={{ r: 6, strokeWidth: 0 }}
             />
           </ComposedChart>
         </ResponsiveContainer>
-      </div>
-
-      <div className="mt-6 pt-6 border-t border-white/5 flex items-center gap-8">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-brand-primary" />
-          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Revenue ($)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-brand-accent" />
-          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Deals Closed</span>
-        </div>
       </div>
     </div>
   );

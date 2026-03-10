@@ -157,33 +157,34 @@ export const ProspectsTable: React.FC<{ data: Prospect[] }> = ({ data }) => {
   });
 
   return (
-    <div className="p-8 rounded-3xl glass border-white/10 overflow-hidden">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-        <div>
-          <h2 className="text-xl font-display font-bold text-white italic">Recent Prospects</h2>
-          <p className="text-xs text-zinc-500 mt-1">Manage and track your automated outreach funnel</p>
-        </div>
-
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.2 }}
+      className="glass rounded-[32px] border-white/10 overflow-hidden"
+    >
+      <div className="p-4 md:p-6 border-b border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <h3 className="text-xl font-display font-bold text-white italic">Active Prospects</h3>
+        
         <div className="flex items-center gap-3">
-          <div className="relative group">
+          <div className="relative group w-full sm:w-auto">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-brand-primary transition-colors" size={14} />
             <input 
               type="text" 
-              value={globalFilter ?? ''}
-              onChange={e => setGlobalFilter(e.target.value)}
-              placeholder="Filter prospects..." 
-              className="bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2 text-xs focus:outline-none focus:border-brand-primary/50 transition-all w-48"
+              placeholder="Filter list..." 
+              value={globalFilter}
+              onChange={(e) => setGlobalFilter(e.target.value)}
+              className="w-full sm:w-64 bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2 text-xs focus:outline-none focus:border-brand-primary/50 transition-all"
             />
           </div>
-          <button className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-zinc-500 hover:text-white transition-all flex items-center gap-2 text-xs font-bold">
-            <Filter size={14} />
-            Filter
+          <button className="p-2 rounded-xl bg-white/5 border border-white/10 text-zinc-500 hover:text-white transition-colors">
+            <Filter size={16} />
           </button>
         </div>
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-separate border-spacing-y-2">
+        <table className="w-full text-left border-collapse min-w-[800px]">
           <thead>
             {table.getHeaderGroups().map(headerGroup => (
               <tr key={headerGroup.id}>
@@ -214,7 +215,7 @@ export const ProspectsTable: React.FC<{ data: Prospect[] }> = ({ data }) => {
         </table>
       </div>
 
-      <div className="mt-8 flex items-center justify-between">
+      <div className="p-4 md:p-6 mt-4 flex items-center justify-between">
         <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
           Showing {table.getRowModel().rows.length} of {data.length} results
         </p>
@@ -250,6 +251,6 @@ export const ProspectsTable: React.FC<{ data: Prospect[] }> = ({ data }) => {
           </button>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };

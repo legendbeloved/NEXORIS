@@ -18,7 +18,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useNotificationStore } from '../../store/dashboardStore';
 
-interface SidebarProps {
+export interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   isCollapsed: boolean;
@@ -28,7 +28,7 @@ interface SidebarProps {
   onLogout?: () => void;
 }
 
-const navItems = [
+export const navItems = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { id: 'agents', icon: Bot, label: 'Agents' },
   { id: 'prospects', icon: Users, label: 'Prospects' },
@@ -100,7 +100,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {navItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => setActiveTab(item.id)}
+              data-tour={item.id}
+              onClick={() => {
+                setActiveTab(item.id);
+                if (isMobileOpen) setIsMobileOpen?.(false);
+              }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group relative ${
                 activeTab === item.id 
                   ? 'bg-brand-primary/10 text-brand-primary border border-brand-primary/20 shadow-[0_0_15px_rgba(91,76,245,0.1)]' 

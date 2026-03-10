@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Terminal, Activity } from 'lucide-react';
+import { Terminal, Activity, ArrowUpRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useNotificationStore } from '../../store/dashboardStore';
 
 interface FunnelStage {
@@ -21,9 +22,20 @@ const funnelStages: FunnelStage[] = [
   { stage: 'Delivered', count: 12, rate: '66.7%', color: '#10B981' },
 ];
 
-export const SplitRow: React.FC = () => {
+export const SplitRow: React.FC<{ funnel: any[] }> = ({ funnel }) => {
+  const navigate = useNavigate();
   const notifications = useNotificationStore((state) => state.notifications);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const stages = (funnel && funnel.length > 0) ? funnel.map(f => {
+    const defaultStage = funnelStages.find(fs => fs.stage.toLowerCase() === f.stage.toLowerCase());
+    return {
+      stage: f.stage.charAt(0).toUpperCase() + f.stage.slice(1),
+      count: f.count,
+      rate: funnel[0].count > 0 ? `${((f.count / funnel[0].count) * 100).toFixed(1)}%` : '0%',
+      color: defaultStage?.color || '#5B4CF5'
+    };
+  }) : funnelStages;
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -32,27 +44,32 @@ export const SplitRow: React.FC = () => {
   }, [notifications]);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 md:gap-8">
       {/* Funnel Visualization */}
-      <div className="lg:col-span-3 p-8 rounded-3xl glass border-white/10 flex flex-col">
+      <div className="lg:col-span-3 p-6 md:p-8 rounded-3xl glass border-white/10 flex flex-col">
         <div className="flex items-center justify-between mb-8">
-          <h2 className="text-xl font-display font-bold text-white italic flex items-center gap-2">
+          <h2 className="text-lg md:text-xl font-display font-bold text-white italic flex items-center gap-2">
             <Activity size={20} className="text-brand-secondary" />
             Conversion Funnel
           </h2>
-          <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Real-time Performance</span>
+          <button 
+            onClick={() => navigate('/app/analytics')}
+            className="text-[10px] font-bold text-zinc-500 hover:text-white uppercase tracking-widest transition-colors flex items-center gap-1"
+          >
+            Full Report <ArrowUpRight size={12} />
+          </button>
         </div>
 
-        <div className="flex-grow flex flex-col justify-between gap-2">
-          {funnelStages.map((stage, i) => (
-            <div key={stage.stage} className="flex items-center gap-4 group">
-              <div className="w-24 text-[10px] font-bold text-zinc-500 uppercase tracking-tighter truncate">
+        <div className="flex-grow flex flex-col justify-between gap-3 md:gap-2">
+          {stages.map((stage, i) => (
+            <div key={stage.stage} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 group">
+              <div className="w-full sm:w-24 text-[10px] font-bold text-zinc-500 uppercase tracking-tighter truncate">
                 {stage.stage}
               </div>
-              <div className="flex-grow relative h-10">
+              <div className="flex-grow relative h-8 sm:h-10">
                 <motion.div
                   initial={{ width: 0 }}
-                  whileInView={{ width: `${(stage.count / funnelStages[0].count) * 100}%` }}
+                  whileInView={{ width: `${(stage.count / stages[0].count) * 100}%` }}
                   viewport={{ once: true }}
                   transition={{ duration: 1, delay: i * 0.1 }}
                   className="h-full rounded-r-lg relative overflow-hidden group-hover:brightness-125 transition-all"
@@ -74,16 +91,18 @@ export const SplitRow: React.FC = () => {
       </div>
 
       {/* Live Activity Feed */}
-      <div className="lg:col-span-2 p-8 rounded-3xl glass border-white/10 flex flex-col h-[500px]">
+      <div className="lg:col-span-2 p-6 md:p-8 rounded-3xl glass border-white/10 flex flex-col h-[400px] md:h-[500px]">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-display font-bold text-white italic flex items-center gap-2">
+          <h2 className="text-lg md:text-xl font-display font-bold text-white italic flex items-center gap-2">
             <Terminal size={20} className="text-brand-primary" />
             Agent Activity
           </h2>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-brand-secondary animate-pulse" />
-            <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Live</span>
-          </div>
+          <button 
+            onClick={() => navigate('/app/notifications')}
+            className="text-[10px] font-bold text-zinc-500 hover:text-white uppercase tracking-widest transition-colors flex items-center gap-1"
+          >
+            View All <ArrowUpRight size={12} />
+          </button>
         </div>
 
         <div 

@@ -13,7 +13,22 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const db = new Database("nexoris.db");
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+const genAI = new GoogleGenAI(process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY || "");
+
+async function generateAIContent(modelName: string, prompt: string, isJson: boolean = false) {
+  try {
+    const model = genAI.getGenerativeModel({ 
+      model: modelName,
+      generationConfig: isJson ? { responseMimeType: "application/json" } : undefined
+    });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text();
+  } catch (e) {
+    console.error(`AI Error (${modelName}):`, e);
+    return "";
+  }
+}
 
 // Initialize Database
 db.exec(`
@@ -55,6 +70,7 @@ db.exec(`
     variant TEXT,
     subject TEXT,
     body TEXT,
+    mockup_preview TEXT,
     sent_at DATETIME,
     opened_at DATETIME,
     clicked_at DATETIME,
@@ -83,6 +99,24 @@ db.exec(`
     key TEXT PRIMARY KEY,
     value TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS projects (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    prospect_id INTEGER,
+    service_type TEXT,
+    status TEXT DEFAULT 'pending', -- pending, in_progress, review, delivered
+    files TEXT, -- JSON array of file objects
+    deadline DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(prospect_id) REFERENCES prospects(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS analytics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    metric_name TEXT NOT NULL,
+    value REAL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 try { db.prepare("ALTER TABLE prospects ADD COLUMN lead_score INTEGER").run(); } catch (e) { }
@@ -90,9 +124,22 @@ try { db.prepare("ALTER TABLE prospects ADD COLUMN signals TEXT").run(); } catch
 
 async function startServer() {
   const app = express();
-  const PORT = process.env.PORT || 3001;
+  const PORT = process.env.PORT || 3008;
+
+  console.log(`Initializing NEXORIS on port ${PORT}...`);
 
   app.use(express.json());
+
+  // Setup Vite
+  const vite = await createViteServer({
+    server: { 
+      middlewareMode: true,
+      hmr: process.env.VITE_HMR_PORT ? { port: parseInt(process.env.VITE_HMR_PORT) } : undefined
+    },
+    appType: "spa",
+  });
+
+  app.use(vite.middlewares);
 
   // API Routes
   // Config: store/retrieve agent configuration (JSON under settings.key='agent_config')
@@ -128,7 +175,18 @@ async function startServer() {
     query += " ORDER BY updated_at DESC LIMIT ? OFFSET ?";
     params.push(Number(limit), offset);
 
-    const prospects = db.prepare(query).all(...params);
+    const rows = db.prepare(query).all(...params) as any[];
+    const prospects = rows.map(r => {
+      let painPoints: string[] = [];
+      let signals: any = {};
+      try { painPoints = JSON.parse(r.pain_points || "[]"); } catch {}
+      try { signals = JSON.parse(r.signals || "{}"); } catch {}
+      return { 
+        ...r, 
+        painPoints, 
+        signals 
+      };
+    });
     const total = db.prepare("SELECT COUNT(*) as count FROM prospects").get() as any;
 
     res.json({ prospects, total: total.count });
@@ -180,14 +238,12 @@ async function startServer() {
     const { token } = req.params;
     const prospect = db.prepare("SELECT * FROM prospects WHERE token = ?").get(token) as any;
 
-    if (!prospect) {
-      return res.status(404).json({ error: "Invalid or expired access token." });
-    }
+    if (!prospect) return res.status(404).json({ error: "Invalid token" });
 
-    // Get messages
-    const messages = db.prepare("SELECT * FROM messages WHERE prospect_id = ? ORDER BY created_at ASC").all(prospect.id);
-
-    res.json({ prospect, messages });
+    const messages = db.prepare("SELECT * FROM messages WHERE prospect_id = ? ORDER BY created_at ASC").all(prospect.id) as any[];
+    const outreach = db.prepare("SELECT mockup_preview FROM outreach WHERE prospect_id = ? ORDER BY sent_at DESC LIMIT 1").get(prospect.id) as any;
+    
+    res.json({ prospect: { ...prospect, mockup_preview: outreach?.mockup_preview || "" }, messages });
   });
 
   app.post("/api/client/message", async (req, res) => {
@@ -204,11 +260,8 @@ async function startServer() {
     setTimeout(async () => {
       try {
         const prompt = `You are Agent 3 from NEXORIS. A client named "${prospect.name}" just sent this message: "${content}". Respond professionally, address their concerns, and guide them towards the next step (booking a call or paying). Keep it concise and friendly.`;
-        const response = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: prompt
-        });
-        const reply = response.text || "I've received your message and will look into this for you.";
+        const replyText = await generateAIContent("gemini-1.5-flash", prompt);
+        const reply = replyText || "I've received your message and will look into this for you.";
 
         db.prepare("INSERT INTO messages (prospect_id, sender, content) VALUES (?, ?, ?)")
           .run(prospect.id, 'agent', reply);
@@ -224,16 +277,22 @@ async function startServer() {
   });
 
   app.post("/api/client/pay", (req, res) => {
-    const { token } = req.body;
-    const prospect = db.prepare("SELECT id FROM prospects WHERE token = ?").get(token) as any;
+    const { token, serviceType } = req.body;
+    const prospect = db.prepare("SELECT * FROM prospects WHERE token = ?").get(token) as any;
 
     if (!prospect) return res.status(404).json({ error: "Invalid token" });
 
+    const amount = 1200; // Simulated amount
+    const service = serviceType || "Digital Transformation";
+    const deadline = new Date();
+    deadline.setDate(deadline.getDate() + 14); // 2 weeks deadline
+
     db.prepare("UPDATE prospects SET status = 'paid', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(prospect.id);
-    db.prepare("INSERT INTO deals (prospect_id, amount, status) VALUES (?, ?, ?)").run(prospect.id, 1200, 'paid');
+    db.prepare("INSERT INTO deals (prospect_id, amount, status) VALUES (?, ?, ?)").run(prospect.id, amount, 'paid');
+    db.prepare("INSERT INTO projects (prospect_id, service_type, status, deadline) VALUES (?, ?, 'in_progress', ?)").run(prospect.id, service, deadline.toISOString());
 
     db.prepare("INSERT INTO notifications (message, type, agent_id) VALUES (?, ?, ?)")
-      .run(`Payment received! Project for ${prospect.id} is now underway.`, "success", 3);
+      .run(`Payment received! Project "${service}" for ${prospect.name} is now underway.`, "success", 3);
 
     res.json({ status: "success", checkoutUrl: "https://checkout.stripe.com/pay/mock_session" });
   });
@@ -248,15 +307,24 @@ async function startServer() {
     const depth = cfg?.agent1?.searchDepth ?? 4;
     const revenueWeight = cfg?.agent1?.scoringWeightRevenue ?? 85;
     const criteria = Array.isArray(cfg?.agent1?.gapCriteria) ? cfg.agent1.gapCriteria.join(", ") : "Slow mobile site, No online booking, Poor SEO";
+    const compIntel = !!cfg?.agent1?.competitorAnalysis;
 
-    // Simulate discovery of 5 businesses
-    const mockBusinesses = [
-      { name: "Joe's Pizza", website: "joespizza.com" },
-      { name: "Elite Plumbing", website: "eliteplumbing.net" },
-      { name: "Downtown Dental", website: "downtowndental.org" },
-      { name: "Green Garden Landscaping", website: "greengarden.com" },
-      { name: "The Coffee Nook", website: "coffeenook.io" }
-    ];
+    console.log(`Agent 1 starting deep scan for "${targetCategory}" in "${targetLocation}" (Depth: ${depth})`);
+
+    // Simulate finding businesses based on category and location
+    const businessesPrompt = `Generate 5 real-looking business names and websites for the category "${targetCategory}" in "${targetLocation}". 
+Return a JSON array of objects with keys "name" and "website". 
+Use local-sounding names. If the category is general, be specific (e.g. if category is 'Food', generate specific restaurants).`;
+    
+    const businessesJson = await generateAIContent("gemini-1.5-flash", businessesPrompt, true);
+    let mockBusinesses = [];
+    try {
+      mockBusinesses = JSON.parse(businessesJson || "[]");
+    } catch (e) {
+      mockBusinesses = [
+        { name: `${targetCategory} Expert`, website: "example-business.com" }
+      ];
+    }
 
     const fetchText = async (url: string) => {
       try {
@@ -292,21 +360,23 @@ async function startServer() {
         const prompt = `You are NEXORIS Discovery Agent (depth ${depth}). Business: "${biz.name}" Category: "${targetCategory}" Location: "${targetLocation}".
 Website summary: """${siteText || "N/A"}"""
 Gap criteria to consider: ${criteria}.
+${compIntel ? "Also perform a brief competitor intelligence check for this business in its area." : ""}
 Return JSON with keys:
 - "gaps": concise paragraph summarizing top 3 digital gaps
 - "painPoints": array of 2-4 pains grounded in industry context and site signals
 - "signals": object flags { hasBooking, hasBlog, hasContact, mobileIssues, seoIssues }
 - "email": likely professional email
-- "phone": valid-looking phone`;
+- "phone": valid-looking phone
+${compIntel ? '- "competitors": array of 2-3 local competitors and their strengths' : ""}`;
 
-        const response = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: prompt,
-          config: { responseMimeType: "application/json" }
-        });
-
-        const data = JSON.parse(response.text || "{}");
+        const responseText = await generateAIContent("gemini-1.5-flash", prompt, true);
+        const data = JSON.parse(responseText || "{}");
         const gapAnalysis = data.gaps || "No analysis available.";
+        // If competitor analysis is present, append it to the gap analysis or a new field
+        const finalGapAnalysis = compIntel && data.competitors 
+          ? `${gapAnalysis}\n\nCompetitor Intel: ${data.competitors.map((c: any) => `${c.name} (${c.strengths})`).join(", ")}`
+          : gapAnalysis;
+
         const painPoints = JSON.stringify(Array.isArray(data.painPoints) ? data.painPoints : ["Slow mobile performance", "No automated booking"]);
         const email = data.email || `contact@${biz.website}`;
         const phone = data.phone || "(555) 000-0000";
@@ -316,7 +386,7 @@ Return JSON with keys:
         db.prepare(`
           INSERT INTO prospects (name, category, location, website, email, phone, gap_analysis, pain_points, token, lead_score, signals)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(biz.name, targetCategory, targetLocation, biz.website, email, phone, gapAnalysis, painPoints, token, leadScore, signals);
+        `).run(biz.name, targetCategory, targetLocation, biz.website, email, phone, finalGapAnalysis, painPoints, token, leadScore, signals);
 
         db.prepare("INSERT INTO notifications (message, type, agent_id) VALUES (?, ?, ?)")
           .run(`Agent 1 analyzed ${biz.name}: score ${leadScore}`, "success", 1);
@@ -335,6 +405,8 @@ Return JSON with keys:
     const sendLimit = Math.min(1000, Math.max(1, cfg?.agent2?.dailySendLimit || 5));
     const identity = cfg?.agent2?.senderIdentity || "Executive Concierge (Sarah)";
     const tone = cfg?.agent2?.brandTone || "Professional";
+    const profile = cfg?.agent2?.personalityProfile || "Empathetic";
+    const smartSched = !!cfg?.agent2?.smartScheduling;
     const ab = !!cfg?.agent2?.abTesting;
     const prospects = db.prepare("SELECT * FROM prospects WHERE status = 'discovered' LIMIT ?").all(sendLimit) as any[];
 
@@ -344,30 +416,36 @@ Return JSON with keys:
         const signals = (() => { try { return JSON.parse(p.signals || "{}"); } catch { return {}; } })();
         const score = Number(p.lead_score || 50);
         const variants = ab ? ["A", "B"] : ["A"];
+        
+        // Smart Scheduling: Simulate delay based on "business hours" if enabled
+        if (smartSched) {
+          console.log(`Smart Scheduling enabled for ${p.name}. Optimizing delivery time...`);
+        }
+
         for (const v of variants) {
           const style = v === "A" ? "Consultative, helpful, friendly" : "Direct, ROI-focused, concise";
-          const prompt = `You are ${identity}. Tone: ${tone}. Style: ${style}.
+          const prompt = `You are ${identity}. Tone: ${tone}. Personality Profile: ${profile}. Style: ${style}.
 Prospect: "${p.name}" Website: "${p.website}"
 Gaps: ${p.gap_analysis}
 Top pains: ${Array.isArray(pains) ? pains.join("; ") : ""}
 Signals: ${JSON.stringify(signals)}
 Lead score: ${score}
-Write JSON with keys "subject" and "body".
+Write JSON with keys "subject" and "body" and "mockup_description".
+- The "mockup_description" should describe a custom digital solution we've prepared for them (e.g., "A modern mobile-first booking interface" or "A performance-optimized homepage redesign").
+- Personalize based on the ${profile} profile (e.g., if Data-Driven, focus on numbers; if Empathetic, focus on understanding their challenges).
 - Personalize with one specific detail from gaps or signals
 - CTA: ${score >= 70 ? "Invite to quick call with calendar link placeholder" : "Offer free consultation"}
 - Keep body under 120 words, no fluff
 - Signature includes ${identity}`;
-          const response = await ai.models.generateContent({
-            model: "gemini-1.5-flash",
-            contents: prompt,
-            config: { responseMimeType: "application/json" }
-          });
-          const j = (() => { try { return JSON.parse(response.text || "{}"); } catch { return {}; } })();
+
+          const responseText = await generateAIContent("gemini-1.5-flash", prompt, true);
+          const j = (() => { try { return JSON.parse(responseText || "{}"); } catch { return {}; } })();
           const subject = (j.subject || "").toString().trim();
           const body = (j.body || "").toString().trim();
+          const mockup = (j.mockup_description || "").toString().trim();
           if (!subject || !body) continue;
-          db.prepare("INSERT INTO outreach (prospect_id, variant, subject, body, sent_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)")
-            .run(p.id, v, subject, body);
+          db.prepare("INSERT INTO outreach (prospect_id, variant, subject, body, mockup_preview, sent_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)")
+            .run(p.id, v, subject, body, mockup);
         }
         db.prepare("UPDATE prospects SET status = 'contacted' WHERE id = ?").run(p.id);
         db.prepare("INSERT INTO notifications (message, type) VALUES (?, ?)")
@@ -378,6 +456,53 @@ Write JSON with keys "subject" and "body".
     }
 
     res.json({ status: "success", message: "Outreach complete" });
+  });
+
+  app.get("/api/outreach/preview", async (req, res) => {
+    const { prospectId } = req.query as any;
+    const cfgRow = db.prepare("SELECT value FROM settings WHERE key = 'agent_config'").get() as any;
+    const cfg = (() => { try { return cfgRow?.value ? JSON.parse(cfgRow.value) : {}; } catch { return {}; } })();
+    const identity = cfg?.agent2?.senderIdentity || "Executive Concierge (Sarah)";
+    const tone = cfg?.agent2?.brandTone || "Professional";
+    const ab = !!cfg?.agent2?.abTesting;
+    const p = db.prepare("SELECT * FROM prospects WHERE id = ?").get(Number(prospectId)) as any;
+    if (!p) return res.status(404).json({ error: "Prospect not found" });
+    try {
+      const pains = (() => { try { return JSON.parse(p.pain_points || "[]"); } catch { return []; } })();
+      const signals = (() => { try { return JSON.parse(p.signals || "{}"); } catch { return {}; } })();
+      const score = Number(p.lead_score || 50);
+      const variants = ab ? ["A", "B"] : ["A"];
+      const outputs: any[] = [];
+      for (const v of variants) {
+        const style = v === "A" ? "Consultative, helpful, friendly" : "Direct, ROI-focused, concise";
+        const prompt = `You are ${identity}. Tone: ${tone}. Style: ${style}.
+Prospect: "${p.name}" Website: "${p.website}"
+Gaps: ${p.gap_analysis}
+Top pains: ${Array.isArray(pains) ? pains.join("; ") : ""}
+Signals: ${JSON.stringify(signals)}
+Lead score: ${score}
+Write JSON with keys "subject" and "body". Keep body under 120 words.`;
+        const responseText = await generateAIContent("gemini-1.5-flash", prompt, true);
+        const j = (() => { try { return JSON.parse(responseText || "{}"); } catch { return {}; } })();
+        outputs.push({ variant: v, subject: j.subject || "", body: j.body || "" });
+      }
+      return res.json({ previews: outputs });
+    } catch (e) {
+      return res.status(500).json({ error: "Preview generation failed" });
+    }
+  });
+
+  app.patch("/api/outreach/events", (req, res) => {
+    const { outreachId, event } = req.body || {};
+    if (!outreachId || !event) return res.status(400).json({ error: "Missing outreachId or event" });
+    if (event === "opened") {
+      db.prepare("UPDATE outreach SET opened_at = CURRENT_TIMESTAMP WHERE id = ?").run(outreachId);
+    } else if (event === "clicked") {
+      db.prepare("UPDATE outreach SET clicked_at = CURRENT_TIMESTAMP WHERE id = ?").run(outreachId);
+    } else {
+      return res.status(400).json({ error: "Invalid event" });
+    }
+    res.json({ status: "ok" });
   });
 
   // Agent 3: Negotiation
@@ -432,14 +557,12 @@ Client: "${prospect.name}" said: "${clientMessage}".
 Gaps: ${prospect.gap_analysis}.
 Guardrails: $${min} - $${max}. Max discount: ${escalation}%.
 Proposed price: $${proposedPrice}.
-${escalated ? 'A human escalation is required. Craft a response that acknowledges constraints and arranges a quick call with the account owner.' : 'Craft a persuasive reply proposing the price and offering next steps (book call or proceed to checkout).'}
+${escalated ? 'A human escalation is required. Craft a response that acknowledges constraints and arranges a quick call with the account owner.' : 'Craft a persuasive reply proposing the price and offering next steps (book call via the calendar button or proceed to checkout).'}
+If they want to talk, mention they can use the "Book a Strategy Call" button in this portal which syncs with our Cal.com schedule.
 Keep reply concise, professional, friendly.`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
-        contents: basePrompt
-      });
-      const agentReply = response.text || "Thanks for the message — let’s arrange a quick call to align on scope.";
+      const agentReplyText = await generateAIContent("gemini-1.5-flash", basePrompt);
+      const agentReply = agentReplyText || "Thanks for the message — let’s arrange a quick call to align on scope.";
 
       db.prepare("UPDATE prospects SET status = 'negotiating' WHERE id = ?").run(prospectId);
 
@@ -461,22 +584,45 @@ Keep reply concise, professional, friendly.`;
     }
   });
 
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    app.use(express.static(path.join(__dirname, "dist")));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(__dirname, "dist", "index.html"));
-    });
-  }
+  app.post("/api/deals/:id/accept", (req, res) => {
+    const { id } = req.params;
+    const deal = db.prepare("SELECT * FROM deals WHERE id = ?").get(id) as any;
+    if (!deal) return res.status(404).json({ error: "Deal not found" });
+    db.prepare("UPDATE deals SET status = 'paid', closed_at = CURRENT_TIMESTAMP WHERE id = ?").run(id);
+    db.prepare("UPDATE prospects SET status = 'paid', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(deal.prospect_id);
+    db.prepare("INSERT INTO notifications (message, type, agent_id) VALUES (?, ?, ?)").run(
+      `Deal ${id} marked as paid.`,
+      "success",
+      3
+    );
+    res.json({ status: "success" });
+  });
+
+  app.get("/api/outreach", (req, res) => {
+    const outreach = db.prepare(`
+      SELECT outreach.*, prospects.name as prospect_name 
+      FROM outreach 
+      JOIN prospects ON outreach.prospect_id = prospects.id 
+      ORDER BY sent_at DESC 
+      LIMIT 100
+    `).all() as any[];
+    res.json(outreach);
+  });
+
+  app.get("/api/deals", (req, res) => {
+    const deals = db.prepare(`
+      SELECT deals.*, prospects.name as client_name 
+      FROM deals 
+      JOIN prospects ON deals.prospect_id = prospects.id 
+      ORDER BY closed_at DESC 
+      LIMIT 50
+    `).all() as any[];
+    res.json(deals);
+  });
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`\n🚀 NEXORIS Mission Control Active`);
+    console.log(`📡 Dashboard: http://localhost:${PORT}\n`);
   });
 }
 

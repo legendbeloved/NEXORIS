@@ -87,12 +87,15 @@ export interface AgentConfig {
     searchDepth: number; // 1-10
     scoringWeightRevenue: number; // 0-100
     gapCriteria: string[];
+    competitorAnalysis: boolean;
   };
   agent2: {
     senderIdentity: 'Executive Concierge (Sarah)' | 'Technical Advisor (Marcus)' | 'Growth Specialist (Alex)';
     brandTone: 'Professional' | 'Aggressive' | 'Helpful';
+    personalityProfile: 'Empathetic' | 'Data-Driven' | 'Challenger';
     abTesting: boolean;
     dailySendLimit: number;
+    smartScheduling: boolean;
   };
   agent3: {
     rules: Array<{ service: string; min: number; max: number; threshold?: string }>;
@@ -109,8 +112,20 @@ export const useAgentConfig = create<ConfigStore>((set) => ({
   config: {
     global: { targetRegion: 'San Francisco, CA', categories: ['E-commerce', 'Healthcare'] },
     modules: { sentimentAnalysis: true, competitorTracking: true, autoEscalation: false },
-    agent1: { searchDepth: 4, scoringWeightRevenue: 85, gapCriteria: ['Missing Website', 'Low SEO Score', 'No Social Presence'] },
-    agent2: { senderIdentity: 'Executive Concierge (Sarah)', brandTone: 'Professional', abTesting: true, dailySendLimit: 450 },
+    agent1: { 
+      searchDepth: 4, 
+      scoringWeightRevenue: 85, 
+      gapCriteria: ['Missing Website', 'Low SEO Score', 'No Social Presence'],
+      competitorAnalysis: true
+    },
+    agent2: { 
+      senderIdentity: 'Executive Concierge (Sarah)', 
+      brandTone: 'Professional', 
+      personalityProfile: 'Empathetic',
+      abTesting: true, 
+      dailySendLimit: 450,
+      smartScheduling: true 
+    },
     agent3: { rules: [{ service: 'SEO Audit', min: 500, max: 1500 }, { service: 'PPC Setup', min: 1200, max: 3000 }], escalationDiscountPercent: 25 },
   },
   setConfig: (cfg) => set((state) => ({

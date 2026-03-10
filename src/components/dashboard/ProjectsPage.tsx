@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Layers, Clock, CheckCircle2, AlertCircle, ChevronRight, MessageSquare, Download, Calendar } from 'lucide-react';
+import { Layers, Clock, CheckCircle2, AlertCircle, ChevronRight, MessageSquare, Download, Calendar, Loader2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 
 interface Project {
   id: number;
@@ -20,6 +21,25 @@ const projects: Project[] = [
 ];
 
 export const ProjectsPage: React.FC = () => {
+  const { data: prospectsData, isLoading } = useQuery({
+    queryKey: ['prospects'],
+    queryFn: () => fetch('/api/prospects').then(res => res.json()),
+  });
+
+  const projectProspects = (prospectsData?.prospects || []).filter((p: any) => 
+    ['paid', 'delivered'].includes(p.status)
+  );
+
+  const displayProjects = projectProspects.length > 0 ? projectProspects.map((p: any) => ({
+    id: p.id,
+    client: p.name,
+    name: p.category || 'Business Outreach',
+    status: p.status === 'delivered' ? 'Completed' : 'In Progress',
+    progress: p.status === 'delivered' ? 100 : 65,
+    dueDate: p.updated_at ? new Date(new Date(p.updated_at).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : '2026-03-12',
+    agent: 'Agent 3'
+  })) : projects;
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -28,6 +48,7 @@ export const ProjectsPage: React.FC = () => {
           <p className="text-zinc-500 mt-1 text-sm">Monitor delivery status and client satisfaction.</p>
         </div>
         <div className="flex items-center gap-4">
+          {isLoading && <Loader2 className="animate-spin text-zinc-500" size={16} />}
           <div className="flex -space-x-2">
             {[1, 2, 3].map(i => (
               <div key={i} className="w-8 h-8 rounded-full border-2 border-brand-bg bg-zinc-800 overflow-hidden">
@@ -40,7 +61,7 @@ export const ProjectsPage: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        {projects.map((project) => (
+        {displayProjects.map((project: any) => (
           <motion.div
             key={project.id}
             initial={{ opacity: 0, x: -20 }}
@@ -103,16 +124,15 @@ export const ProjectsPage: React.FC = () => {
               </div>
 
               {/* Actions */}
-              <div className="lg:w-1/4 flex items-center justify-end gap-3">
-                <button className="p-3 rounded-xl bg-white/5 border border-white/5 text-zinc-500 hover:text-white transition-all group/btn relative">
+              <div className="lg:w-1/4 flex items-center justify-end gap-2">
+                <button className="p-3 rounded-2xl bg-white/5 border border-white/10 text-zinc-400 hover:text-white transition-all group-hover:bg-brand-primary/10 group-hover:border-brand-primary/30">
                   <MessageSquare size={18} />
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-brand-primary text-white text-[8px] font-bold rounded-full flex items-center justify-center border-2 border-brand-bg">2</span>
                 </button>
-                <button className="p-3 rounded-xl bg-white/5 border border-white/5 text-zinc-500 hover:text-white transition-all">
+                <button className="p-3 rounded-2xl bg-white/5 border border-white/10 text-zinc-400 hover:text-white transition-all group-hover:bg-brand-primary/10 group-hover:border-brand-primary/30">
                   <Download size={18} />
                 </button>
-                <button className="px-4 py-3 bg-brand-primary/10 text-brand-primary border border-brand-primary/20 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-brand-primary hover:text-white transition-all flex items-center gap-2">
-                  Details
+                <button className="pl-4 pr-3 py-3 rounded-2xl bg-white/5 border border-white/10 text-zinc-400 hover:text-white transition-all group-hover:bg-brand-primary group-hover:text-white flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest">
+                  View Portal
                   <ChevronRight size={14} />
                 </button>
               </div>

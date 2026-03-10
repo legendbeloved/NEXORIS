@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mail, Plus, Search, Filter, MoreHorizontal, Send, Eye, Copy, Trash2, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { Mail, Plus, Search, Filter, MoreHorizontal, Send, Eye, Copy, Trash2, CheckCircle2, Clock, AlertCircle, Loader2, User } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 
 interface Template {
   id: number;
@@ -20,7 +21,13 @@ const templates: Template[] = [
 ];
 
 export const OutreachPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'templates' | 'sequences' | 'analytics'>('templates');
+  const [activeTab, setActiveTab] = useState<'templates' | 'sent' | 'analytics'>('templates');
+
+  const { data: outreach, isLoading } = useQuery({
+    queryKey: ['outreach'],
+    queryFn: () => fetch('/api/outreach').then(res => res.json()),
+    enabled: activeTab === 'sent',
+  });
 
   return (
     <div className="space-y-8">
@@ -37,15 +44,19 @@ export const OutreachPage: React.FC = () => {
 
       {/* Tabs */}
       <div className="flex items-center gap-2 p-1 bg-white/5 rounded-2xl w-fit border border-white/5">
-        {['templates', 'sequences', 'analytics'].map((tab) => (
+        {[
+          { id: 'templates', label: 'Templates' },
+          { id: 'sent', label: 'Sent Outreach' },
+          { id: 'analytics', label: 'Analytics' }
+        ].map((tab) => (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab as any)}
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
             className={`px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
-              activeTab === tab ? 'bg-brand-primary text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'
+              activeTab === tab.id ? 'bg-brand-primary text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'
             }`}
           >
-            {tab}
+            {tab.label}
           </button>
         ))}
       </div>
@@ -125,16 +136,61 @@ export const OutreachPage: React.FC = () => {
           </motion.div>
         )}
 
-        {activeTab === 'sequences' && (
+        {activeTab === 'sent' && (
           <motion.div
-            key="sequences"
+            key="sent"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="flex flex-col items-center justify-center py-20 text-zinc-500"
+            className="space-y-6"
           >
-            <Clock size={48} className="mb-4 opacity-20" />
-            <p className="text-sm italic">Sequences module is being optimized...</p>
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
+                <Loader2 size={48} className="animate-spin mb-4 opacity-20" />
+                <p className="text-sm italic">Retrieving sent outreach history...</p>
+              </div>
+            ) : outreach?.length > 0 ? (
+              <div className="grid grid-cols-1 gap-4">
+                {outreach.map((item: any) => (
+                  <div key={item.id} className="glass p-6 rounded-3xl border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-6 group hover:border-brand-primary/30 transition-all">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-brand-primary/10 flex items-center justify-center text-brand-primary">
+                        <User size={24} />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-white">{item.prospect_name}</h3>
+                        <p className="text-xs text-zinc-400 font-medium truncate max-w-[300px]">{item.subject}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-8">
+                      <div className="text-center">
+                        <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest mb-1">Status</p>
+                        <div className="flex items-center gap-2">
+                          {item.opened_at ? <CheckCircle2 size={12} className="text-emerald-500" /> : <Clock size={12} className="text-zinc-500" />}
+                          <span className={`text-[10px] font-bold uppercase ${item.opened_at ? 'text-emerald-500' : 'text-zinc-500'}`}>
+                            {item.opened_at ? 'Opened' : 'Sent'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest mb-1">Variant</p>
+                        <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[10px] font-bold text-white">{item.variant}</span>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest mb-1">Sent Date</p>
+                        <p className="text-[10px] font-mono text-zinc-400">{new Date(item.sent_at).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
+                <Mail size={48} className="mb-4 opacity-20" />
+                <p className="text-sm italic">No outreach sent yet. Activate Agent 2 to start communication.</p>
+              </div>
+            )}
           </motion.div>
         )}
 

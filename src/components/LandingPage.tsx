@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform, useInView } from 'motion/react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Zap, 
   Search, 
@@ -24,6 +25,8 @@ import {
 const Navbar = ({ onGetStarted }: { onGetStarted: () => void }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -33,22 +36,26 @@ const Navbar = ({ onGetStarted }: { onGetStarted: () => void }) => {
 
   const navLinks = [
     { name: 'Features', type: 'hash', value: 'features' },
-    { name: 'How It Works', type: 'path', value: '/how-it-works' },
-    { name: 'Pricing', type: 'path', value: '/pricing' },
-    { name: 'Demo', type: 'path', value: '/demo' },
-    { name: 'FAQ', type: 'path', value: '/faq' },
+    { name: 'How It Works', type: 'hash', value: 'how-it-works' },
+    { name: 'Pricing', type: 'hash', value: 'pricing' },
+    { name: 'FAQ', type: 'hash', value: 'faq' },
   ];
 
-  const navigate = (type: 'hash' | 'path', value: string) => {
+  const handleNavigation = (type: 'hash' | 'path', value: string) => {
     if (type === 'hash') {
-      history.pushState({}, '', `/#${value}`);
-      window.dispatchEvent(new PopStateEvent('popstate'));
-      const el = document.getElementById(value);
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      return;
+      const element = document.getElementById(value);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        navigate('/');
+        // Wait for navigation then scroll
+        setTimeout(() => {
+          document.getElementById(value)?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      }
+    } else {
+      navigate(value);
     }
-    history.pushState({}, '', value);
-    window.dispatchEvent(new PopStateEvent('popstate'));
   };
 
   return (
@@ -56,7 +63,7 @@ const Navbar = ({ onGetStarted }: { onGetStarted: () => void }) => {
       <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
         <div 
           className="flex items-center gap-2 group cursor-pointer"
-          onClick={() => { history.pushState({}, '', '/'); window.dispatchEvent(new PopStateEvent('popstate')); }}
+          onClick={() => navigate('/')}
         >
           <div className="w-10 h-10 bg-brand-primary rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(91,76,245,0.3)] group-hover:scale-110 transition-transform">
             <Zap className="text-white fill-white" size={20} />
@@ -66,21 +73,18 @@ const Navbar = ({ onGetStarted }: { onGetStarted: () => void }) => {
 
         <div className="hidden md:flex items-center gap-8">
           {navLinks.map((link) => (
-            <a 
+            <button 
               key={link.name} 
-              onClick={(e) => { 
-                e.preventDefault(); 
-                navigate(link.type as any, link.value);
-              }} 
+              onClick={() => handleNavigation(link.type as any, link.value)}
               className="text-sm font-medium text-zinc-400 hover:text-brand-secondary transition-colors"
             >
               {link.name}
-            </a>
+            </button>
           ))}
         </div>
 
         <div className="hidden md:flex items-center gap-4">
-          <button onClick={onGetStarted} className="text-sm font-medium text-zinc-400 hover:text-white transition-colors px-4 py-2">
+          <button onClick={() => navigate('/login')} className="text-sm font-medium text-zinc-400 hover:text-white transition-colors px-4 py-2">
             Sign In
           </button>
           <button 
@@ -110,22 +114,21 @@ const Navbar = ({ onGetStarted }: { onGetStarted: () => void }) => {
           >
             <div className="flex flex-col gap-4">
               {navLinks.map((link) => (
-                <a 
+                <button 
                   key={link.name} 
-                  onClick={(e) => { 
-                    e.preventDefault(); 
-                    navigate(link.type as any, link.value); 
+                  onClick={() => { 
+                    handleNavigation(link.type as any, link.value); 
                     setIsMobileMenuOpen(false);
                   }} 
-                  className="text-lg font-medium text-zinc-400 hover:text-brand-secondary transition-colors"
+                  className="text-left text-lg font-medium text-zinc-400 hover:text-brand-secondary transition-colors"
                 >
                   {link.name}
-                </a>
+                </button>
               ))}
               <hr className="border-white/10 my-2" />
               <button 
                 onClick={() => { 
-                  onGetStarted();
+                  navigate('/login');
                   setIsMobileMenuOpen(false);
                 }} 
                 className="text-left text-lg font-medium text-zinc-400"
@@ -219,10 +222,6 @@ const Hero = ({ onGetStarted }: { onGetStarted: () => void }) => {
               Start Free
               <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
             </button>
-            <button onClick={() => { window.location.href = '/demo'; }} className="w-full sm:w-auto px-8 py-4 bg-white/5 hover:bg-white/10 text-white font-bold rounded-2xl transition-all border border-white/10 flex items-center justify-center gap-2">
-              <Play size={18} className="fill-white" />
-              Watch Demo
-            </button>
           </div>
 
           <div className="flex items-center gap-4 pt-4">
@@ -249,6 +248,10 @@ const Hero = ({ onGetStarted }: { onGetStarted: () => void }) => {
           
           <div className="mt-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
             No credit card required · Set up in 15 minutes
+          </div>
+
+          <div className="pt-8 hidden xl:block">
+            <LiveFeed />
           </div>
         </motion.div>
 
@@ -919,7 +922,80 @@ const Footer = () => {
   );
 };
 
-export default function LandingPage({ onEnterApp, initialSection }: { onEnterApp: () => void; initialSection?: string }) {
+const LiveFeed = () => {
+  const [activities, setActivities] = useState([
+    { id: 1, agent: 'Discovery', msg: 'Found high-value gap: Elite Plumbing', time: 'Just now' },
+    { id: 2, agent: 'Outreach', msg: 'Sent personalized pitch to Downtown Dental', time: '2m ago' },
+    { id: 3, agent: 'Negotiation', msg: 'Closed deal: $1,200 with Joe\'s Pizza', time: '5m ago' },
+  ]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const agents = ['Discovery', 'Outreach', 'Negotiation'];
+      const actions = [
+        'Analyzed digital presence for',
+        'Sent hyper-personalized email to',
+        'Booked strategy call with',
+        'Negotiating project scope with',
+        'Generated custom mockup for'
+      ];
+      const businesses = ['Green Garden', 'The Coffee Nook', 'Tech Solutions', 'Blue Sky Agency', 'Local Market'];
+      
+      const newActivity = {
+        id: Date.now(),
+        agent: agents[Math.floor(Math.random() * agents.length)],
+        msg: `${actions[Math.floor(Math.random() * actions.length)]} "${businesses[Math.floor(Math.random() * businesses.length)]}"`,
+        time: 'Just now'
+      };
+
+      setActivities(prev => [newActivity, ...prev.slice(0, 4)]);
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="glass p-6 rounded-3xl border-white/10 space-y-4 max-w-sm w-full">
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Live Mission Feed</h4>
+        <div className="flex items-center gap-1.5">
+          <div className="w-1.5 h-1.5 rounded-full bg-brand-secondary animate-pulse" />
+          <span className="text-[9px] font-bold text-brand-secondary uppercase">Active</span>
+        </div>
+      </div>
+      <div className="space-y-3">
+        <AnimatePresence mode="popLayout">
+          {activities.map((act) => (
+            <motion.div
+              key={act.id}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-white/5 group hover:border-white/10 transition-colors"
+            >
+              <div className="w-8 h-8 rounded-lg bg-brand-primary/10 flex items-center justify-center text-brand-primary shrink-0">
+                <Zap size={14} fill="currentColor" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold text-white mb-0.5 italic">Agent: {act.agent}</p>
+                <p className="text-[11px] text-zinc-400 truncate">{act.msg}</p>
+              </div>
+              <span className="text-[9px] text-zinc-600 font-mono ml-auto shrink-0">{act.time}</span>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+};
+
+export default function LandingPage({ 
+  onEnterApp,
+  initialSection
+}: { 
+  onEnterApp: () => void,
+  initialSection?: string
+}) {
   useEffect(() => {
     if (initialSection) {
       const el = document.getElementById(initialSection);
@@ -937,7 +1013,6 @@ export default function LandingPage({ onEnterApp, initialSection }: { onEnterApp
       <FeatureHighlights />
       <UniqueFeatures />
       <HowItWorks />
-      <Demo />
       <SocialProof />
       <FAQ />
       <Pricing />
