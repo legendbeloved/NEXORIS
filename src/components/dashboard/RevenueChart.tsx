@@ -28,13 +28,13 @@ const fallbackData = [
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-zinc-900/90 backdrop-blur-md border border-white/10 p-4 rounded-2xl shadow-2xl">
-        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">{label}</p>
+      <div className="bg-brand-surface/90 backdrop-blur-md border border-brand-border p-4 rounded-2xl shadow-2xl">
+        <p className="text-[10px] font-bold text-brand-text-muted uppercase tracking-widest mb-2">{label}</p>
         <div className="space-y-1">
-          <p className="text-sm font-bold text-white">
+          <p className="text-sm font-bold text-brand-text">
             Revenue: <span className="text-brand-secondary">${payload[0].value.toLocaleString()}</span>
           </p>
-          <p className="text-sm font-bold text-white">
+          <p className="text-sm font-bold text-brand-text">
             Deals: <span className="text-brand-accent">{payload[1].value}</span>
           </p>
         </div>
@@ -54,29 +54,29 @@ export const RevenueChart: React.FC = () => {
   const displayData = revenueData || fallbackData;
 
   return (
-    <div className="glass p-6 md:p-8 rounded-[32px] border-white/10">
+    <div className="glass p-6 md:p-8 rounded-[32px] border-brand-border">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
             <DollarSign size={24} />
           </div>
           <div>
-            <h3 className="text-xl font-display font-bold text-white italic">Revenue Analytics</h3>
+            <h3 className="text-xl font-display font-bold text-brand-text italic">Revenue Analytics</h3>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-zinc-500">Last 30 Days</span>
+              <span className="text-xs text-brand-text-muted">Last 30 Days</span>
               <span className="text-[10px] text-emerald-500 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">+12.5% Growth</span>
             </div>
           </div>
         </div>
         <button 
           onClick={() => navigate('/app/payments')}
-          className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-zinc-400 hover:text-white hover:bg-white/10 transition-all text-xs font-bold uppercase tracking-widest flex items-center gap-2"
+          className="px-4 py-2 rounded-xl bg-brand-surface border border-brand-border text-brand-text-muted hover:text-brand-text hover:bg-brand-surface/80 transition-all text-xs font-bold uppercase tracking-widest flex items-center gap-2"
         >
           View Details <ChevronRight size={14} />
         </button>
       </div>
 
-      <div className="h-[350px] w-full">
+      <div className="h-[350px] w-full min-h-[350px]">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={displayData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <defs>
@@ -85,7 +85,7 @@ export const RevenueChart: React.FC = () => {
                 <stop offset="100%" stopColor="#5B4CF5" stopOpacity={0.1} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-brand-border)" vertical={false} opacity={0.3} />
             <XAxis 
               dataKey="week" 
               axisLine={false} 

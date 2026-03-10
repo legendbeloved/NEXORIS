@@ -30,14 +30,14 @@ const KPICard: React.FC<KPICardProps> = ({ label, value, subValue, icon: Icon, c
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
-      className="p-5 md:p-6 rounded-3xl glass border-white/10 hover:border-white/20 transition-all group relative overflow-hidden"
+      className="p-5 md:p-6 rounded-3xl glass border-brand-border hover:border-brand-primary/20 transition-all group relative overflow-hidden"
       role="region"
       aria-label={label}
     >
       <div className="absolute bottom-0 left-0 w-full h-1" style={{ backgroundColor: color }} />
       
       <div className="flex items-center justify-between mb-4">
-        <div className="p-2.5 md:p-3 rounded-xl bg-white/5 text-zinc-400 group-hover:text-white transition-colors">
+        <div className="p-2.5 md:p-3 rounded-xl bg-brand-surface text-brand-text-muted group-hover:text-brand-text transition-colors border border-brand-border">
           <Icon size={18} className="md:w-5 md:h-5" />
         </div>
         <div className="flex items-center gap-1 text-emerald-500 text-[10px] font-bold">
@@ -46,8 +46,8 @@ const KPICard: React.FC<KPICardProps> = ({ label, value, subValue, icon: Icon, c
         </div>
       </div>
 
-      <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-1">{label}</p>
-      <motion.h3 className="text-3xl md:text-4xl font-display font-extrabold text-white tracking-tighter italic">
+      <p className="text-brand-text-muted text-[10px] font-bold uppercase tracking-widest mb-1">{label}</p>
+      <motion.h3 className="text-3xl md:text-4xl font-display font-extrabold text-brand-text tracking-tighter italic">
         {displayValue}
       </motion.h3>
     </motion.div>

@@ -28,28 +28,39 @@ export const AgentStatusCards: React.FC = () => {
 
         if (endpoint) {
           updateAgent(id, { currentAction: 'Initializing AI core...' });
+          
+          // Use AbortController for timeout
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
 
           fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
+            signal: controller.signal
           })
-            .then(async (res) => {
-              if (res.ok) {
-                const data = await res.json();
-                if (data.status === 'success') {
-                  updateAgent(id, { currentAction: 'Task completed successfully', status: 'IDLE', progress: 100 });
-                } else {
-                  updateAgent(id, { status: 'ERROR', currentAction: 'Operation failed' });
-                }
+          .then(async (res) => {
+            clearTimeout(timeoutId);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.status === 'success') {
+                updateAgent(id, { currentAction: 'Task completed successfully', status: 'IDLE', progress: 100 });
               } else {
-                updateAgent(id, { status: 'ERROR', currentAction: 'Server error' });
+                updateAgent(id, { status: 'ERROR', currentAction: 'Operation failed' });
               }
-            })
-            .catch((err) => {
+            } else {
+              updateAgent(id, { status: 'ERROR', currentAction: 'Server error' });
+            }
+          })
+          .catch((err) => {
+            clearTimeout(timeoutId);
+            if (err.name === 'AbortError') {
+              updateAgent(id, { status: 'ERROR', currentAction: 'Request timed out' });
+            } else {
               console.error('Agent activation error:', err);
               updateAgent(id, { status: 'ERROR', currentAction: 'Connection refused' });
-            });
+            }
+          });
         }
       } catch (e) {
         updateAgent(id, { status: 'ERROR' });

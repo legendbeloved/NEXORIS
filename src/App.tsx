@@ -30,8 +30,9 @@ import { TeamPage } from './components/dashboard/TeamPage';
 import { SubscriptionPage } from './components/dashboard/SubscriptionPage';
 import { HelpPage } from './components/dashboard/HelpPage';
 import { NotFoundPage } from './components/NotFoundPage';
-import { useNotificationStore as useLegacyNotificationStore } from './store/dashboardStore';
-import { useNotificationStore } from './store/notificationStore';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { useNotificationStore as useDashboardNotificationStore } from './store/dashboardStore';
+import { useNotificationStore as useAppNotificationStore } from './store/notificationStore';
 import { ClientPortal } from './components/client/ClientPortal';
 import { SignInPage } from './components/auth/SignInPage';
 import { SignUpPage } from './components/auth/SignUpPage';
@@ -96,9 +97,9 @@ const DashboardLayout: React.FC = () => {
   // Extract active tab from path (e.g. /app/agents -> agents)
   const activeTab = location.pathname.split('/')[2] || 'dashboard';
 
-  const addNotification = useLegacyNotificationStore(state => state.addNotification);
-  const setNotifications = useNotificationStore((s) => s.setNotifications);
-  const setUnreadCount = useNotificationStore((s) => s.setUnreadCount);
+  const addNotification = useDashboardNotificationStore(state => state.addNotification);
+  const setNotifications = useAppNotificationStore((s) => s.setNotifications);
+  const setUnreadCount = useAppNotificationStore((s) => s.setUnreadCount);
 
   // Simulate real-time activity
   useEffect(() => {
@@ -123,32 +124,36 @@ const DashboardLayout: React.FC = () => {
     return () => clearInterval(interval);
   }, [addNotification]);
 
-  // Load notifications
-  useEffect(() => {
-    let t: any;
-    const load = async () => {
-      try {
-        const r = await fetch(`/api/notifications?page=1&limit=20`);
-        const j = await r.json();
-        if (j?.data?.notifications) setNotifications(j.data.notifications);
-        if (typeof j?.data?.unread_count === "number") setUnreadCount(j.data.unread_count);
-      } catch { }
-    };
-    const poll = async () => {
-      try {
-        const r = await fetch(`/api/notifications/unread-count`);
-        const j = await r.json();
-        if (typeof j?.count === "number") setUnreadCount(j.count);
-      } catch { }
-      t = setTimeout(poll, 30000);
-    };
-    load();
-    poll();
-    return () => clearTimeout(t);
-  }, []);
+  // Load notifications (REMOVED: already loaded in App)
+  // useEffect(() => {
+  //   let t: any;
+  //   const load = async () => {
+  //     try {
+  //       const r = await fetch(`/api/notifications?page=1&limit=20`);
+  //       if (r.ok) {
+  //         const j = await r.json();
+  //         if (j?.data?.notifications) setNotifications(j.data.notifications);
+  //         if (typeof j?.data?.unread_count === "number") setUnreadCount(j.data.unread_count);
+  //       }
+  //     } catch {}
+  //   };
+  //   const poll = async () => {
+  //     try {
+  //       const r = await fetch(`/api/notifications/unread-count`);
+  //       if (r.ok) {
+  //         const j = await r.json();
+  //         if (typeof j?.count === "number") setUnreadCount(j.count);
+  //       }
+  //     } catch {}
+  //     t = setTimeout(poll, 30000);
+  //   };
+  //   load();
+  //   poll();
+  //   return () => clearTimeout(t);
+  // }, []);
 
   return (
-    <div className="flex min-h-screen bg-brand-bg text-zinc-300 font-body selection:bg-brand-primary/30 selection:text-white overflow-x-hidden">
+    <div className="flex min-h-screen bg-brand-bg text-brand-text font-body selection:bg-brand-primary/30 selection:text-white overflow-x-hidden">
       <OnboardingTour />
       <Sidebar
         activeTab={activeTab}
@@ -296,7 +301,7 @@ const ForgotWrapper = () => {
   );
 };
 
-const ClientPortalWrapper = () => {
+const ClientPortalWrapper: React.FC = () => {
   const { token } = React.useMemo(() => {
     const path = window.location.pathname;
     return { token: path.split('/')[2] };
@@ -307,12 +312,45 @@ const ClientPortalWrapper = () => {
 };
 
 const App: React.FC = () => {
+  const setNotifications = useAppNotificationStore((s) => s.setNotifications);
+  const setUnreadCount = useAppNotificationStore((s) => s.setUnreadCount);
+  
+  // Load notifications
+  useEffect(() => {
+    let t: any;
+    const load = async () => {
+      try {
+        const r = await fetch(`/api/notifications?page=1&limit=20`);
+        if (r.ok) {
+          const j = await r.json();
+          if (j?.data?.notifications) setNotifications(j.data.notifications);
+          if (typeof j?.data?.unread_count === "number") setUnreadCount(j.data.unread_count);
+        }
+      } catch {}
+    };
+    const poll = async () => {
+      try {
+        const r = await fetch(`/api/notifications/unread-count`);
+        if (r.ok) {
+          const j = await r.json();
+          if (typeof j?.count === "number") setUnreadCount(j.count);
+        }
+      } catch {}
+      t = setTimeout(poll, 30000);
+    };
+    load();
+    poll();
+    return () => clearTimeout(t);
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
+        <ErrorBoundary>
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </ErrorBoundary>
       </ThemeProvider>
     </QueryClientProvider>
   );

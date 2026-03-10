@@ -1,20 +1,42 @@
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono&display=swap');
 @import "tailwindcss";
 
+:root {
+  /* Enforce Dark Mode Defaults */
+  --color-brand-bg: #08091A;
+  --color-brand-surface: #18181b;
+  --color-brand-text: #f4f4f5; /* Zinc 100 */
+  --color-brand-text-muted: #a1a1aa; /* Zinc 400 */
+  --color-brand-border: rgba(255, 255, 255, 0.1);
+  
+  --color-brand-primary: #5B4CF5;
+  --color-brand-secondary: #00D4FF;
+  --color-brand-accent: #F59E0B;
+  
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-shadow: none;
+}
+
 @theme {
   --font-display: "Syne", sans-serif;
   --font-sans: "DM Sans", sans-serif;
   --font-mono: "JetBrains Mono", monospace;
   
-  --color-brand-bg: #08091A;
-  --color-brand-primary: #5B4CF5;
-  --color-brand-secondary: #00D4FF;
-  --color-brand-accent: #F59E0B;
+  --color-brand-bg: var(--color-brand-bg);
+  --color-brand-surface: var(--color-brand-surface);
+  --color-brand-text: var(--color-brand-text);
+  --color-brand-text-muted: var(--color-brand-text-muted);
+  --color-brand-border: var(--color-brand-border);
+  
+  --color-brand-primary: var(--color-brand-primary);
+  --color-brand-secondary: var(--color-brand-secondary);
+  --color-brand-accent: var(--color-brand-accent);
 }
 
 @layer base {
   body {
-    @apply bg-brand-bg text-zinc-100 font-sans antialiased;
+    @apply bg-brand-bg text-brand-text font-sans antialiased transition-colors duration-300;
   }
   html {
     scroll-behavior: smooth;
@@ -27,7 +49,10 @@
 
 @layer utilities {
   .glass {
-    @apply bg-white/5 backdrop-blur-xl border border-white/10;
+    background-color: var(--glass-bg);
+    border-color: var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    @apply backdrop-blur-xl border transition-colors duration-300;
   }
   
   .no-scrollbar::-webkit-scrollbar {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Settings, Shield, Zap, Bell, Globe, Lock, Cpu, Save, RefreshCcw, AlertTriangle, Bot, Target, MessageSquare, DollarSign, Loader2, CheckCircle2 } from 'lucide-react';
+import { Settings, Shield, Zap, Bell, Globe, Lock, Cpu, Save, RefreshCcw, AlertTriangle, Bot, Target, MessageSquare, DollarSign, Loader2, CheckCircle2, Mail } from 'lucide-react';
 import { useAgentConfig } from '../../store/dashboardStore';
 
 export const SettingsPage: React.FC = () => {

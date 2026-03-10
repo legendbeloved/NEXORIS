@@ -1,25 +1,17 @@
 import React, { useState } from 'react';
-import { 
-  useReactTable, 
-  getCoreRowModel, 
-  flexRender, 
+import {
+  useReactTable,
+  getCoreRowModel,
+  flexRender,
   createColumnHelper,
   getPaginationRowModel,
   getFilteredRowModel,
   getSortedRowModel,
   SortingState
 } from '@tanstack/react-table';
-import { 
-  MoreHorizontal, 
-  ExternalLink, 
-  Mail, 
-  MessageSquare, 
-  ChevronLeft, 
-  ChevronRight,
-  Search,
-  Filter,
-  ArrowUpDown
-} from 'lucide-react';
+import { Search, MapPin, Globe, Mail, Phone, ExternalLink, MoreVertical, Filter, Download, Trash2, CheckCircle2, XCircle, AlertCircle, Clock, ChevronLeft, ChevronRight, ArrowUpDown, MessageSquare } from 'lucide-react';
+import { EntityDetailModal } from './EntityDetailModal';
+import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 
 interface Prospect {
@@ -47,9 +39,21 @@ const statusColors: Record<string, string> = {
   paid: 'bg-brand-primary/10 text-brand-primary',
 };
 
-export const ProspectsTable: React.FC<{ data: Prospect[] }> = ({ data }) => {
+interface ProspectsTableProps {
+  data: Prospect[];
+  onSearch?: (query: string) => void;
+  onFilter?: () => void;
+}
+
+export const ProspectsTable: React.FC<ProspectsTableProps> = ({ data, onSearch, onFilter }) => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
+  const [selectedProspectId, setSelectedProspectId] = React.useState<number | null>(null);
+  const { data: detailData, isLoading: isDetailLoading } = useQuery<Prospect>({
+    queryKey: ['prospect', selectedProspectId],
+    queryFn: () => fetch(`/api/prospects/${selectedProspectId}`).then(res => res.json()),
+    enabled: !!selectedProspectId
+  });
 
   const columns = [
     columnHelper.accessor('name', {
@@ -116,7 +120,7 @@ export const ProspectsTable: React.FC<{ data: Prospect[] }> = ({ data }) => {
       header: '',
       cell: info => (
         <div className="flex items-center justify-end gap-2">
-          <button 
+          <button
             onClick={() => {
               if (info.row.original.token) {
                 window.open(`/client/${info.row.original.token}`, '_blank');
@@ -134,7 +138,7 @@ export const ProspectsTable: React.FC<{ data: Prospect[] }> = ({ data }) => {
             <MessageSquare size={14} />
           </button>
           <button className="p-2 rounded-lg bg-white/5 text-zinc-500 hover:text-white hover:bg-white/10 transition-all">
-            <MoreHorizontal size={14} />
+            <MoreVertical size={14} />
           </button>
         </div>
       ),
@@ -157,27 +161,33 @@ export const ProspectsTable: React.FC<{ data: Prospect[] }> = ({ data }) => {
   });
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.2 }}
-      className="glass rounded-[32px] border-white/10 overflow-hidden"
+      className="glass rounded-[32px] border-brand-border overflow-hidden"
     >
-      <div className="p-4 md:p-6 border-b border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h3 className="text-xl font-display font-bold text-white italic">Active Prospects</h3>
-        
+      <div className="p-4 md:p-6 border-b border-brand-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <h3 className="text-xl font-display font-bold text-brand-text italic">Active Prospects</h3>
+
         <div className="flex items-center gap-3">
           <div className="relative group w-full sm:w-auto">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-brand-primary transition-colors" size={14} />
-            <input 
-              type="text" 
-              placeholder="Filter list..." 
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-text-muted group-focus-within:text-brand-primary transition-colors" size={14} />
+            <input
+              type="text"
+              placeholder="Filter list..."
               value={globalFilter}
-              onChange={(e) => setGlobalFilter(e.target.value)}
-              className="w-full sm:w-64 bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2 text-xs focus:outline-none focus:border-brand-primary/50 transition-all"
+              onChange={(e) => {
+                setGlobalFilter(e.target.value);
+                onSearch?.(e.target.value);
+              }}
+              className="w-full sm:w-64 bg-brand-surface border border-brand-border rounded-xl pl-9 pr-4 py-2 text-xs focus:outline-none focus:border-brand-primary/50 transition-all text-brand-text"
             />
           </div>
-          <button className="p-2 rounded-xl bg-white/5 border border-white/10 text-zinc-500 hover:text-white transition-colors">
+          <button
+            onClick={onFilter}
+            className="p-2 rounded-xl bg-brand-surface border border-brand-border text-brand-text-muted hover:text-brand-text transition-colors"
+          >
             <Filter size={16} />
           </button>
         </div>
@@ -189,8 +199,8 @@ export const ProspectsTable: React.FC<{ data: Prospect[] }> = ({ data }) => {
             {table.getHeaderGroups().map(headerGroup => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map(header => (
-                  <th key={header.id} className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                  <th key={header.id} className="p-4 text-[10px] font-bold text-brand-text-muted uppercase tracking-widest border-b border-brand-border">
+                    {flexRender(header.column.columnDef.header, header.getContext())}
                   </th>
                 ))}
               </tr>
@@ -198,18 +208,17 @@ export const ProspectsTable: React.FC<{ data: Prospect[] }> = ({ data }) => {
           </thead>
           <tbody>
             {table.getRowModel().rows.map(row => (
-              <motion.tr 
-                key={row.id}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="group"
+              <tr 
+                key={row.id} 
+                className="group hover:bg-brand-surface/50 transition-colors border-b border-brand-border last:border-0"
+                onClick={() => setSelectedProspectId(row.original.id)}
               >
                 {row.getVisibleCells().map(cell => (
-                  <td key={cell.id} className="px-4 py-4 bg-white/[0.02] border-y border-white/5 first:border-l first:rounded-l-2xl last:border-r last:rounded-r-2xl group-hover:bg-white/[0.05] transition-colors">
+                  <td key={cell.id} className="p-4">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}
-              </motion.tr>
+              </tr>
             ))}
           </tbody>
         </table>
@@ -220,7 +229,7 @@ export const ProspectsTable: React.FC<{ data: Prospect[] }> = ({ data }) => {
           Showing {table.getRowModel().rows.length} of {data.length} results
         </p>
         <div className="flex items-center gap-2">
-          <button 
+          <button
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
             className="p-2 rounded-xl bg-white/5 border border-white/10 text-zinc-500 hover:text-white disabled:opacity-30 transition-all"
@@ -232,17 +241,16 @@ export const ProspectsTable: React.FC<{ data: Prospect[] }> = ({ data }) => {
               <button
                 key={i}
                 onClick={() => table.setPageIndex(i)}
-                className={`w-8 h-8 rounded-lg text-[10px] font-bold transition-all ${
-                  table.getState().pagination.pageIndex === i 
-                    ? 'bg-brand-primary text-white shadow-lg shadow-brand-primary/20' 
-                    : 'bg-white/5 text-zinc-500 hover:text-white'
-                }`}
+                className={`w-8 h-8 rounded-lg text-[10px] font-bold transition-all ${table.getState().pagination.pageIndex === i
+                  ? 'bg-brand-primary text-white shadow-lg shadow-brand-primary/20'
+                  : 'bg-white/5 text-zinc-500 hover:text-white'
+                  }`}
               >
                 {i + 1}
               </button>
             ))}
           </div>
-          <button 
+          <button
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
             className="p-2 rounded-xl bg-white/5 border border-white/10 text-zinc-500 hover:text-white disabled:opacity-30 transition-all"
@@ -251,6 +259,16 @@ export const ProspectsTable: React.FC<{ data: Prospect[] }> = ({ data }) => {
           </button>
         </div>
       </div>
+
+      <EntityDetailModal
+        isOpen={!!selectedProspectId}
+        onClose={() => setSelectedProspectId(null)}
+        title={detailData?.name || 'Prospect Detail'}
+        subtitle={detailData?.category}
+        type="prospect"
+        data={detailData}
+        loading={isDetailLoading}
+      />
     </motion.div>
   );
 };

@@ -1,10 +1,16 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Bell, CheckCircle2, AlertCircle, Info, Trash2, Settings, Search, Filter, MoreHorizontal } from 'lucide-react';
-import { useNotificationStore } from '../../store/dashboardStore';
+import { useNotificationStore } from '../../store/notificationStore'; // Using the unified store
 
 export const NotificationsPage: React.FC = () => {
-  const { notifications, clearNotifications, markAllAsRead } = useNotificationStore();
+  const { 
+    notifications, 
+    unreadCount, 
+    markAllRead, 
+    setFilter, 
+    activeFilter 
+  } = useNotificationStore();
 
   return (
     <div className="space-y-8">
@@ -15,17 +21,11 @@ export const NotificationsPage: React.FC = () => {
         </div>
         <div className="flex items-center gap-3">
           <button 
-            onClick={markAllAsRead}
-            className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-white/10 transition-all"
+            onClick={() => markAllRead()}
+            disabled={unreadCount === 0}
+            className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Mark all as read
-          </button>
-          <button 
-            onClick={clearNotifications}
-            className="px-4 py-2.5 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-red-500/20 transition-all flex items-center gap-2"
-          >
-            <Trash2 size={14} />
-            Clear All
           </button>
         </div>
       </div>
@@ -43,8 +43,13 @@ export const NotificationsPage: React.FC = () => {
               />
             </div>
             <div className="flex items-center gap-2">
-              <button className="p-2 rounded-lg bg-white/5 text-zinc-500 hover:text-white transition-all"><Filter size={16} /></button>
-              <button className="p-2 rounded-lg bg-white/5 text-zinc-500 hover:text-white transition-all"><Settings size={16} /></button>
+              <button 
+                onClick={() => setFilter(activeFilter === 'all' ? 'unread' : 'all')}
+                className={`p-2 rounded-lg transition-all ${activeFilter === 'unread' ? 'bg-brand-primary/20 text-brand-primary' : 'bg-white/5 text-zinc-500 hover:text-white'}`}
+                title="Filter Unread"
+              >
+                <Filter size={16} />
+              </button>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -61,35 +66,36 @@ export const NotificationsPage: React.FC = () => {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
-                className={`p-6 flex gap-4 items-start group hover:bg-white/[0.02] transition-colors ${n.read ? 'opacity-60' : ''}`}
+                className={`p-6 flex gap-4 items-start group hover:bg-white/[0.02] transition-colors ${n.is_read ? 'opacity-60' : ''}`}
               >
                 <div className={`w-10 h-10 rounded-xl shrink-0 flex items-center justify-center ${
                   n.type === 'success' ? 'bg-emerald-500/10 text-emerald-500' :
-                  n.type === 'warning' ? 'bg-brand-accent/10 text-brand-accent' :
-                  n.type === 'error' ? 'bg-red-500/10 text-red-500' :
+                  n.priority === 'URGENT' ? 'bg-red-500/10 text-red-500' :
                   'bg-brand-primary/10 text-brand-primary'
                 }`}>
                   {n.type === 'success' ? <CheckCircle2 size={20} /> :
-                   n.type === 'warning' ? <AlertCircle size={20} /> :
-                   n.type === 'error' ? <AlertCircle size={20} /> :
+                   n.priority === 'URGENT' ? <AlertCircle size={20} /> :
                    <Info size={20} />}
                 </div>
                 
                 <div className="flex-grow">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-[10px] text-zinc-500 font-mono">
-                      {n.timestamp.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                      {n.created_at ? new Date(n.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Just now'}
                     </span>
                     <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-zinc-600 hover:text-white">
                       <MoreHorizontal size={14} />
                     </button>
                   </div>
-                  <p className="text-sm text-zinc-200 leading-relaxed font-medium">
+                  <h4 className="text-sm font-bold text-white mb-1">{n.title}</h4>
+                  <p className="text-sm text-zinc-300 leading-relaxed">
                     {n.message}
                   </p>
                   <div className="mt-2 flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded bg-white/5 text-[8px] font-bold uppercase tracking-widest text-zinc-500">System</span>
-                    <span className="px-2 py-0.5 rounded bg-white/5 text-[8px] font-bold uppercase tracking-widest text-zinc-500">Agent Activity</span>
+                    <span className="px-2 py-0.5 rounded bg-white/5 text-[8px] font-bold uppercase tracking-widest text-zinc-500">{n.type}</span>
+                    {n.requires_action && (
+                      <span className="px-2 py-0.5 rounded bg-brand-primary/20 text-[8px] font-bold uppercase tracking-widest text-brand-primary">Action Required</span>
+                    )}
                   </div>
                 </div>
               </motion.div>

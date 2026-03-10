@@ -239,15 +239,22 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({ token }) => {
   const [screen, setScreen] = useState<'welcome' | 'chat' | 'pay' | 'portal'>('welcome');
   const [prospect, setProspect] = useState<Prospect | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isTyping, setIsTyping] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     fetchClientData();
   }, [token]);
+
+  useEffect(() => {
+    if (screen !== 'chat') return;
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isTyping, screen]);
 
   const fetchClientData = async () => {
     try {
@@ -313,6 +320,14 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({ token }) => {
       console.error(err);
       setIsTyping(false);
     }
+  };
+
+  const handleChatSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
+    e.preventDefault();
+    const content = newMessage.trim();
+    if (!content) return;
+    setNewMessage('');
+    await handleSendMessage(content);
   };
 
   const handlePayment = async () => {
@@ -544,7 +559,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({ token }) => {
                       I'm ready to pay
                     </button>
                   </div>
-                  <form onSubmit={handleSendMessage} className="flex gap-4">
+                  <form onSubmit={handleChatSubmit} className="flex gap-4">
                     <input
                       type="text"
                       value={newMessage}

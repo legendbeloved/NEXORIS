@@ -46,15 +46,15 @@ export const SplitRow: React.FC<{ funnel: any[] }> = ({ funnel }) => {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 md:gap-8">
       {/* Funnel Visualization */}
-      <div className="lg:col-span-3 p-6 md:p-8 rounded-3xl glass border-white/10 flex flex-col">
+      <div className="lg:col-span-3 p-6 md:p-8 rounded-3xl glass border-brand-border flex flex-col">
         <div className="flex items-center justify-between mb-8">
-          <h2 className="text-lg md:text-xl font-display font-bold text-white italic flex items-center gap-2">
+          <h2 className="text-lg md:text-xl font-display font-bold text-brand-text italic flex items-center gap-2">
             <Activity size={20} className="text-brand-secondary" />
             Conversion Funnel
           </h2>
           <button 
             onClick={() => navigate('/app/analytics')}
-            className="text-[10px] font-bold text-zinc-500 hover:text-white uppercase tracking-widest transition-colors flex items-center gap-1"
+            className="text-[10px] font-bold text-brand-text-muted hover:text-brand-text uppercase tracking-widest transition-colors flex items-center gap-1"
           >
             Full Report <ArrowUpRight size={12} />
           </button>
@@ -63,7 +63,7 @@ export const SplitRow: React.FC<{ funnel: any[] }> = ({ funnel }) => {
         <div className="flex-grow flex flex-col justify-between gap-3 md:gap-2">
           {stages.map((stage, i) => (
             <div key={stage.stage} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 group">
-              <div className="w-full sm:w-24 text-[10px] font-bold text-zinc-500 uppercase tracking-tighter truncate">
+              <div className="w-full sm:w-24 text-[10px] font-bold text-brand-text-muted uppercase tracking-tighter truncate">
                 {stage.stage}
               </div>
               <div className="flex-grow relative h-8 sm:h-10">
@@ -91,15 +91,15 @@ export const SplitRow: React.FC<{ funnel: any[] }> = ({ funnel }) => {
       </div>
 
       {/* Live Activity Feed */}
-      <div className="lg:col-span-2 p-6 md:p-8 rounded-3xl glass border-white/10 flex flex-col h-[400px] md:h-[500px]">
+      <div className="lg:col-span-2 p-6 md:p-8 rounded-3xl glass border-brand-border flex flex-col h-[400px] md:h-[500px]">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg md:text-xl font-display font-bold text-white italic flex items-center gap-2">
+          <h2 className="text-lg md:text-xl font-display font-bold text-brand-text italic flex items-center gap-2">
             <Terminal size={20} className="text-brand-primary" />
             Agent Activity
           </h2>
           <button 
             onClick={() => navigate('/app/notifications')}
-            className="text-[10px] font-bold text-zinc-500 hover:text-white uppercase tracking-widest transition-colors flex items-center gap-1"
+            className="text-[10px] font-bold text-brand-text-muted hover:text-brand-text uppercase tracking-widest transition-colors flex items-center gap-1"
           >
             View All <ArrowUpRight size={12} />
           </button>
@@ -117,7 +117,7 @@ export const SplitRow: React.FC<{ funnel: any[] }> = ({ funnel }) => {
                 initial={{ opacity: 0, x: 20, height: 0 }}
                 animate={{ opacity: 1, x: 0, height: 'auto' }}
                 exit={{ opacity: 0, x: -20 }}
-                className="p-3 rounded-xl bg-white/5 border border-white/5 flex gap-3 items-start group hover:bg-white/10 transition-colors"
+                className="p-3 rounded-xl bg-brand-surface border border-brand-border flex gap-3 items-start group hover:bg-brand-surface/80 transition-colors"
               >
                 <div className={`w-10 h-10 rounded-xl shrink-0 flex flex-col items-center justify-center text-[8px] font-bold border ${
                   n.type === 'success' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
@@ -131,19 +131,19 @@ export const SplitRow: React.FC<{ funnel: any[] }> = ({ funnel }) => {
                 <div className="flex-grow min-w-0">
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold text-white uppercase tracking-widest">
+                      <span className="text-[10px] font-bold text-brand-text uppercase tracking-widest">
                         {n.agentName || 'System'}
                       </span>
-                      <span className="w-1 h-1 rounded-full bg-zinc-700" />
-                      <span className="text-[10px] text-zinc-500 font-mono">
+                      <span className="w-1 h-1 rounded-full bg-zinc-500" />
+                      <span className="text-[10px] text-brand-text-muted font-mono">
                         {n.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                       </span>
                     </div>
-                    <span className="text-[8px] text-zinc-600 uppercase font-bold tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="text-[8px] text-brand-text-muted uppercase font-bold tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
                       Verified
                     </span>
                   </div>
-                  <p className="text-xs font-mono text-zinc-300 leading-relaxed break-words">
+                  <p className="text-xs font-mono text-brand-text-muted leading-relaxed break-words">
                     {n.message}
                   </p>
                 </div>
@@ -151,7 +151,7 @@ export const SplitRow: React.FC<{ funnel: any[] }> = ({ funnel }) => {
             ))}
           </AnimatePresence>
           {notifications.length === 0 && (
-            <div className="h-full flex flex-col items-center justify-center text-zinc-600 space-y-4">
+            <div className="h-full flex flex-col items-center justify-center text-brand-text-muted space-y-4">
               <Activity size={48} className="opacity-20 animate-pulse" />
               <p className="text-sm italic">Waiting for agent activity...</p>
             </div>
