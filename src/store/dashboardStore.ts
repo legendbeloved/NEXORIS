@@ -17,9 +17,9 @@ interface AgentStore {
 
 export const useAgentStore = create<AgentStore>((set) => ({
   agents: [
-    { id: 1, name: 'Discovery Engine', status: 'IDLE', currentAction: 'Waiting for instructions...', progress: 0, prospectsProcessed: 142 },
-    { id: 2, name: 'Outreach Intelligence', status: 'IDLE', currentAction: 'Standby...', progress: 0, prospectsProcessed: 89 },
-    { id: 3, name: 'Negotiation & Delivery', status: 'IDLE', currentAction: 'Monitoring replies...', progress: 0, prospectsProcessed: 12 },
+    { id: 1, name: 'Discovery Agent', status: 'IDLE', currentAction: 'Waiting for instructions...', progress: 0, prospectsProcessed: 142 },
+    { id: 2, name: 'Outreach Agent', status: 'IDLE', currentAction: 'Standby...', progress: 0, prospectsProcessed: 89 },
+    { id: 3, name: 'Negotiation Agent', status: 'IDLE', currentAction: 'Monitoring replies...', progress: 0, prospectsProcessed: 12 },
   ],
   toggleAgent: (id) => set((state) => ({
     agents: state.agents.map((a) => 

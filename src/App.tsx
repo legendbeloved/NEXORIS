@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  AnimatePresence, 
-  motion 
+import {
+  AnimatePresence,
+  motion
 } from 'motion/react';
-import { 
+import {
   QueryClient,
   QueryClientProvider,
   useQuery
@@ -92,7 +92,7 @@ const DashboardLayout: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  
+
   // Extract active tab from path (e.g. /app/agents -> agents)
   const activeTab = location.pathname.split('/')[2] || 'dashboard';
 
@@ -104,14 +104,14 @@ const DashboardLayout: React.FC = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       const activities = [
-        { msg: "Discovered a new high-value prospect in Austin, TX.", agentId: 1, agentName: "Discovery Engine", type: 'success' },
-        { msg: "Sent a personalized outreach email to 'Elite Plumbing'.", agentId: 2, agentName: "Outreach Intelligence", type: 'info' },
-        { msg: "Received a positive reply from 'Joe's Pizza'.", agentId: 3, agentName: "Negotiation & Delivery", type: 'success' },
-        { msg: "System optimized outreach variant B for higher click-through rate.", agentId: 2, agentName: "Outreach Intelligence", type: 'warning' },
-        { msg: "Analyzed digital gaps for 'Downtown Dental'.", agentId: 1, agentName: "Discovery Engine", type: 'info' },
+        { msg: "Discovered a new high-value prospect in Austin, TX.", agentId: 1, agentName: "Discovery Agent", type: 'success' },
+        { msg: "Sent a personalized outreach email to 'Elite Plumbing'.", agentId: 2, agentName: "Outreach Agent", type: 'info' },
+        { msg: "Received a positive reply from 'Joe's Pizza'.", agentId: 3, agentName: "Negotiation Agent", type: 'success' },
+        { msg: "System optimized outreach variant B for higher click-through rate.", agentId: 2, agentName: "Outreach Agent", type: 'warning' },
+        { msg: "Analyzed digital gaps for 'Downtown Dental'.", agentId: 1, agentName: "Discovery Agent", type: 'info' },
       ];
       const activity = activities[Math.floor(Math.random() * activities.length)];
-      
+
       addNotification({
         message: activity.msg,
         type: activity.type as any,
@@ -132,14 +132,14 @@ const DashboardLayout: React.FC = () => {
         const j = await r.json();
         if (j?.data?.notifications) setNotifications(j.data.notifications);
         if (typeof j?.data?.unread_count === "number") setUnreadCount(j.data.unread_count);
-      } catch {}
+      } catch { }
     };
     const poll = async () => {
       try {
         const r = await fetch(`/api/notifications/unread-count`);
         const j = await r.json();
         if (typeof j?.count === "number") setUnreadCount(j.count);
-      } catch {}
+      } catch { }
       t = setTimeout(poll, 30000);
     };
     load();
@@ -150,26 +150,26 @@ const DashboardLayout: React.FC = () => {
   return (
     <div className="flex min-h-screen bg-brand-bg text-zinc-300 font-body selection:bg-brand-primary/30 selection:text-white overflow-x-hidden">
       <OnboardingTour />
-      <Sidebar 
-        activeTab={activeTab} 
+      <Sidebar
+        activeTab={activeTab}
         setActiveTab={(tab) => {
           navigate(tab === 'dashboard' ? '/app' : `/app/${tab}`);
           setIsMobileMenuOpen(false);
-        }} 
+        }}
         isCollapsed={isCollapsed}
         setIsCollapsed={setIsCollapsed}
         isMobileOpen={isMobileMenuOpen}
         setIsMobileOpen={setIsMobileMenuOpen}
         onLogout={() => navigate('/')}
       />
-      
+
       <main className={`flex-grow transition-all duration-300 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-[240px]'} ml-0`}>
-        <TopBar 
-          activeTab={activeTab} 
+        <TopBar
+          activeTab={activeTab}
           onMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         />
         <NotificationCenter />
-        
+
         <div className="p-4 md:p-8 max-w-[1600px] mx-auto">
           <AnimatePresence mode="wait">
             <motion.div
@@ -249,8 +249,8 @@ const AppRoutes = () => {
 const LandingWrapper = () => {
   const navigate = useNavigate();
   return (
-    <LandingPage 
-      onEnterApp={() => navigate('/login')} 
+    <LandingPage
+      onEnterApp={() => navigate('/login')}
     />
   );
 };
@@ -258,7 +258,7 @@ const LandingWrapper = () => {
 const SignInWrapper = () => {
   const navigate = useNavigate();
   return (
-    <SignInPage 
+    <SignInPage
       onSuccess={() => navigate('/app')}
       goSignup={() => navigate('/signup')}
       goForgotPassword={() => navigate('/forgot-password')}
@@ -269,7 +269,7 @@ const SignInWrapper = () => {
 const SignUpWrapper = () => {
   const navigate = useNavigate();
   return (
-    <SignUpPage 
+    <SignUpPage
       onSuccess={() => navigate('/verify-email')}
       goSignin={() => navigate('/login')}
     />
@@ -279,7 +279,7 @@ const SignUpWrapper = () => {
 const VerifyWrapper = () => {
   const navigate = useNavigate();
   return (
-    <EmailVerification 
+    <EmailVerification
       email="user@example.com"
       onSuccess={() => navigate('/app')}
       onBack={() => navigate('/signup')}
@@ -290,7 +290,7 @@ const VerifyWrapper = () => {
 const ForgotWrapper = () => {
   const navigate = useNavigate();
   return (
-    <ForgotPassword 
+    <ForgotPassword
       onBack={() => navigate('/login')}
     />
   );
@@ -301,7 +301,7 @@ const ClientPortalWrapper = () => {
     const path = window.location.pathname;
     return { token: path.split('/')[2] };
   }, []);
-  
+
   if (!token) return <Navigate to="/" />;
   return <ClientPortal token={token} />;
 };
