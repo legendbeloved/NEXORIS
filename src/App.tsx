@@ -38,6 +38,7 @@ import { SignInPage } from './components/auth/SignInPage';
 import { SignUpPage } from './components/auth/SignUpPage';
 import { EmailVerification } from './components/auth/EmailVerification';
 import { ForgotPassword } from './components/auth/ForgotPassword';
+import { ResetPassword } from './components/auth/ResetPassword';
 import { ThemeProvider } from './components/ThemeProvider';
 import { OnboardingTour } from './components/onboarding/OnboardingTour';
 
@@ -78,9 +79,9 @@ const DashboardHome: React.FC = () => {
         <RevenueChart />
       </section>
 
-      <section aria-labelledby="prospects-title" className="overflow-x-auto">
+      <section aria-labelledby="prospects-title" className="min-w-0">
         <h2 id="prospects-title" className="sr-only">Recent Prospects</h2>
-        <div className="min-w-[600px] lg:min-w-0">
+        <div className="min-w-0">
           <ProspectsTable data={prospectsData?.prospects || []} />
         </div>
       </section>
@@ -243,6 +244,7 @@ const AppRoutes = () => {
       <Route path="/signup" element={<SignUpWrapper />} />
       <Route path="/verify-email" element={<VerifyWrapper />} />
       <Route path="/forgot-password" element={<ForgotWrapper />} />
+      <Route path="/reset-password" element={<ResetPasswordWrapper />} />
       <Route path="/client/:token" element={<ClientPortalWrapper />} />
       <Route path="/app/*" element={<DashboardLayout />} />
       {/* Fallback for old hash routes or other paths */}
@@ -297,6 +299,15 @@ const ForgotWrapper = () => {
   return (
     <ForgotPassword
       onBack={() => navigate('/login')}
+    />
+  );
+};
+
+const ResetPasswordWrapper = () => {
+  const navigate = useNavigate();
+  return (
+    <ResetPassword
+      onBackToLogin={() => navigate('/login')}
     />
   );
 };

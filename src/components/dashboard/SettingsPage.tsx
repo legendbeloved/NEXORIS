@@ -1,23 +1,79 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Settings, Shield, Zap, Bell, Globe, Lock, Cpu, Save, RefreshCcw, AlertTriangle, Bot, Target, MessageSquare, DollarSign, Loader2, CheckCircle2, Mail } from 'lucide-react';
 import { useAgentConfig } from '../../store/dashboardStore';
+import { useQuery } from '@tanstack/react-query';
 
 export const SettingsPage: React.FC = () => {
   const [activeSection, setActiveSection] = useState('general');
   const { config, setConfig } = useAgentConfig();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [billing, setBilling] = useState({
+    plan: 'Pro',
+    currency: 'USD',
+    invoiceEmail: 'billing@nexoris.ai',
+    autoRenew: true,
+    taxId: '',
+  });
+  const [billingHydrated, setBillingHydrated] = useState(false);
+  const [notificationSettings, setNotificationSettings] = useState({
+    inApp: true,
+    email: true,
+    weeklySummary: true,
+    agentAlerts: true,
+    dealAlerts: true,
+    marketing: false,
+  });
+  const [notificationsHydrated, setNotificationsHydrated] = useState(false);
+
+  const { data: billingData } = useQuery({
+    queryKey: ['settings', 'billing'],
+    queryFn: () => fetch('/api/settings/billing').then((r) => r.json()),
+  });
+
+  const { data: notificationsData } = useQuery({
+    queryKey: ['settings', 'notifications'],
+    queryFn: () => fetch('/api/settings/notifications').then((r) => r.json()),
+  });
+
+  useEffect(() => {
+    if (!billingHydrated && billingData) {
+      setBilling(billingData);
+      setBillingHydrated(true);
+    }
+  }, [billingData, billingHydrated]);
+
+  useEffect(() => {
+    if (!notificationsHydrated && notificationsData) {
+      setNotificationSettings(notificationsData);
+      setNotificationsHydrated(true);
+    }
+  }, [notificationsData, notificationsHydrated]);
 
   const handleSave = async () => {
     setSaving(true);
     setSaved(false);
     try {
-      await fetch('/api/config', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config),
-      });
+      if (activeSection === 'billing') {
+        await fetch('/api/settings/billing', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(billing),
+        });
+      } else if (activeSection === 'notifications') {
+        await fetch('/api/settings/notifications', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(notificationSettings),
+        });
+      } else {
+        await fetch('/api/config', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(config),
+        });
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (e) {
@@ -38,7 +94,7 @@ export const SettingsPage: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-display font-bold text-white italic tracking-tight">System Settings</h1>
           <p className="text-zinc-500 mt-1 text-sm">Configure your NEXORIS engine and agent behavior.</p>
@@ -46,7 +102,7 @@ export const SettingsPage: React.FC = () => {
         <button 
           onClick={handleSave}
           disabled={saving}
-          className={`px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg ${
+          className={`w-full sm:w-auto justify-center px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg ${
             saved ? 'bg-emerald-500 text-white' : 'bg-brand-primary text-white hover:scale-105 shadow-brand-primary/20'
           }`}
         >
@@ -289,7 +345,142 @@ export const SettingsPage: React.FC = () => {
             </motion.div>
           )}
 
-          {activeSection !== 'general' && activeSection !== 'agents' && activeSection !== 'agent-config' && (
+          {activeSection === 'notifications' && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="glass p-8 rounded-[32px] border-white/10 space-y-8"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-brand-primary/10 text-brand-primary flex items-center justify-center">
+                  <Bell size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-display font-bold text-white italic">Notifications</h3>
+                  <p className="text-xs text-zinc-500">Control alerts across the dashboard.</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {[
+                  { key: 'inApp', title: 'In-app notifications', desc: 'Show notifications in your dashboard.' },
+                  { key: 'email', title: 'Email notifications', desc: 'Receive important alerts by email.' },
+                  { key: 'weeklySummary', title: 'Weekly summary', desc: 'Get weekly performance summaries.' },
+                  { key: 'agentAlerts', title: 'Agent alerts', desc: 'Mission status, errors, approvals.' },
+                  { key: 'dealAlerts', title: 'Deal alerts', desc: 'Meeting booked, deal agreed, payment received.' },
+                  { key: 'marketing', title: 'Product updates', desc: 'Occasional updates and tips.' },
+                ].map((item) => (
+                  <div key={item.key} className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5">
+                    <div>
+                      <p className="text-sm font-bold text-white">{item.title}</p>
+                      <p className="text-xs text-zinc-500">{item.desc}</p>
+                    </div>
+                    <button
+                      onClick={() => setNotificationSettings((s: any) => ({ ...s, [item.key]: !s[item.key] }))}
+                      className={`w-12 h-6 rounded-full relative p-1 transition-colors ${
+                        (notificationSettings as any)[item.key] ? 'bg-brand-primary' : 'bg-zinc-700'
+                      }`}
+                    >
+                      <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                        (notificationSettings as any)[item.key] ? 'translate-x-6' : 'translate-x-0'
+                      }`} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {activeSection === 'billing' && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="glass p-8 rounded-[32px] border-white/10 space-y-8"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-brand-primary/10 text-brand-primary flex items-center justify-center">
+                  <DollarSign size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-display font-bold text-white italic">Plan & Billing</h3>
+                  <p className="text-xs text-zinc-500">Billing preferences and invoice details.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Plan</label>
+                  <select
+                    value={billing.plan}
+                    onChange={(e) => setBilling((s) => ({ ...s, plan: e.target.value }))}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary/50 text-white appearance-none"
+                  >
+                    <option value="Starter">Starter</option>
+                    <option value="Pro">Pro</option>
+                    <option value="Enterprise">Enterprise</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Currency</label>
+                  <select
+                    value={billing.currency}
+                    onChange={(e) => setBilling((s) => ({ ...s, currency: e.target.value }))}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary/50 text-white appearance-none"
+                  >
+                    <option value="USD">USD</option>
+                    <option value="GBP">GBP</option>
+                    <option value="EUR">EUR</option>
+                    <option value="NGN">NGN</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Invoice Email</label>
+                  <div className="relative group">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-brand-primary transition-colors" size={18} />
+                    <input
+                      type="email"
+                      value={billing.invoiceEmail}
+                      onChange={(e) => setBilling((s) => ({ ...s, invoiceEmail: e.target.value }))}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:border-brand-primary/50 text-white placeholder-zinc-600"
+                      placeholder="billing@company.com"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Tax ID (optional)</label>
+                  <input
+                    type="text"
+                    value={billing.taxId}
+                    onChange={(e) => setBilling((s) => ({ ...s, taxId: e.target.value }))}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-primary/50 text-white placeholder-zinc-600"
+                    placeholder="VAT / EIN"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5">
+                <div>
+                  <p className="text-sm font-bold text-white">Auto-renew</p>
+                  <p className="text-xs text-zinc-500">Renew automatically each billing cycle.</p>
+                </div>
+                <button
+                  onClick={() => setBilling((s) => ({ ...s, autoRenew: !s.autoRenew }))}
+                  className={`w-12 h-6 rounded-full relative p-1 transition-colors ${billing.autoRenew ? 'bg-brand-primary' : 'bg-zinc-700'}`}
+                >
+                  <div className={`w-4 h-4 rounded-full bg-white transition-transform ${billing.autoRenew ? 'translate-x-6' : 'translate-x-0'}`} />
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {activeSection !== 'general' &&
+            activeSection !== 'agents' &&
+            activeSection !== 'agent-config' &&
+            activeSection !== 'notifications' &&
+            activeSection !== 'billing' && (
             <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
               <RefreshCcw size={48} className="mb-4 opacity-20 animate-spin-slow" />
               <p className="text-sm italic">{activeSection} configuration is being synchronized...</p>

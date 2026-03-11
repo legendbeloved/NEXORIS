@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNotificationStore } from '../../store/dashboardStore';
-import { useTheme } from '../ThemeProvider';
 
 export interface SidebarProps {
   activeTab: string;
@@ -51,7 +50,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onLogout
 }) => {
   const unreadCount = useNotificationStore((state) => state.unreadCount);
-  const { theme } = useTheme();
 
   return (
     <>

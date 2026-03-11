@@ -2,23 +2,73 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Bot, Zap, Settings, Play, Square, RefreshCcw, Cpu, Brain, MessageSquare, Send } from 'lucide-react';
 import { useAgentStore, useAgentConfig } from '../../store/dashboardStore';
+import { useQueryClient } from '@tanstack/react-query';
 
 export const AgentsPage: React.FC = () => {
   const { agents, toggleAgent, updateAgent } = useAgentStore();
   const { config, setConfig } = useAgentConfig();
   const [syncing, setSyncing] = React.useState(false);
+  const queryClient = useQueryClient();
+  const [autopilot, setAutopilot] = React.useState<any>(null);
+  const [autopilotBusy, setAutopilotBusy] = React.useState(false);
+
+  React.useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const r = await fetch('/api/config');
+        if (!r.ok) return;
+        const j = await r.json();
+        if (mounted && j) setConfig(j);
+      } catch {}
+    };
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  React.useEffect(() => {
+    let t: any;
+    let mounted = true;
+    const poll = async () => {
+      try {
+        const r = await fetch('/api/agents/autopilot/status');
+        if (r.ok) {
+          const j = await r.json();
+          if (mounted) setAutopilot(j);
+        }
+      } catch { }
+      t = setTimeout(poll, 4000);
+    };
+    poll();
+    return () => {
+      mounted = false;
+      try {
+        clearTimeout(t);
+      } catch { }
+    };
+  }, []);
 
   const handleSync = async () => {
     setSyncing(true);
     try {
-      await fetch('/api/config', {
+      const r = await fetch('/api/config', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
       });
-      // Give some visual feedback
-      setTimeout(() => setSyncing(false), 1000);
+      if (r.ok) {
+        try {
+          const rr = await fetch('/api/config');
+          if (rr.ok) {
+            const j = await rr.json();
+            if (j) setConfig(j);
+          }
+        } catch {}
+      }
     } catch (e) {
+    } finally {
       setSyncing(false);
     }
   };
@@ -40,17 +90,30 @@ export const AgentsPage: React.FC = () => {
           payload = { category: config.global.categories[0] || 'SaaS', location: config.global.targetRegion || 'San Francisco, CA' };
         } else if (id === 2) {
           endpoint = '/api/agents/outreach';
+        } else if (id === 3) {
+          endpoint = '/api/agents/negotiation';
         }
         
         if (endpoint) {
           updateAgent(id, { currentAction: 'Processing mission parameters...', progress: 40 });
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 90000);
           const res = await fetch(endpoint, { 
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
+            signal: controller.signal,
           });
+          clearTimeout(timeoutId);
           
           if (res.ok) {
+            await queryClient.invalidateQueries({ queryKey: ['prospects'] });
+            await queryClient.invalidateQueries({ queryKey: ['stats'] });
+            await queryClient.invalidateQueries({ queryKey: ['outreach'] });
+            await queryClient.invalidateQueries({ queryKey: ['deals'] });
+            await queryClient.invalidateQueries({ queryKey: ['projects'] });
+            await queryClient.invalidateQueries({ queryKey: ['notifications'] });
+            await queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count'] });
             updateAgent(id, { currentAction: 'Task completed successfully.', progress: 100 });
             setTimeout(() => {
               toggleAgent(id); // Deactivate after completion
@@ -66,6 +129,49 @@ export const AgentsPage: React.FC = () => {
     } else {
       updateAgent(id, { currentAction: 'Standby.', progress: 0 });
     }
+  };
+
+  const setAutopilotAgentUi = (running: boolean) => {
+    if (running) {
+      updateAgent(1, { status: 'ACTIVE', currentAction: 'Autopilot running continuously (Discovery)', progress: 0 });
+      updateAgent(2, { status: 'ACTIVE', currentAction: 'Autopilot running continuously (Outreach)', progress: 0 });
+      updateAgent(3, { status: 'ACTIVE', currentAction: 'Autopilot running continuously (Negotiation)', progress: 0 });
+    } else {
+      updateAgent(1, { status: 'IDLE', currentAction: 'Waiting for instructions...', progress: 0 });
+      updateAgent(2, { status: 'IDLE', currentAction: 'Standby...', progress: 0 });
+      updateAgent(3, { status: 'IDLE', currentAction: 'Monitoring replies...', progress: 0 });
+    }
+  };
+
+  const toggleAutopilot = async () => {
+    setAutopilotBusy(true);
+    try {
+      if (autopilot?.running) {
+        const r = await fetch('/api/agents/autopilot/stop', { method: 'POST' });
+        if (r.ok) {
+          const j = await r.json();
+          setAutopilot((s: any) => ({ ...(s || {}), ...j, running: false }));
+          setAutopilotAgentUi(false);
+        }
+      } else {
+        const r = await fetch('/api/agents/autopilot/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ intervalMs: 30000 }),
+        });
+        if (r.ok) {
+          const j = await r.json();
+          setAutopilot((s: any) => ({ ...(s || {}), ...j, running: true }));
+          setAutopilotAgentUi(true);
+        }
+      }
+      await queryClient.invalidateQueries({ queryKey: ['prospects'] });
+      await queryClient.invalidateQueries({ queryKey: ['projects'] });
+      await queryClient.invalidateQueries({ queryKey: ['deals'] });
+      await queryClient.invalidateQueries({ queryKey: ['stats'] });
+      await queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    } catch { }
+    setAutopilotBusy(false);
   };
 
   const agentDetails = [
@@ -105,14 +211,28 @@ export const AgentsPage: React.FC = () => {
           <h1 className="text-3xl font-display font-bold text-white italic tracking-tight">AI Agent Squad</h1>
           <p className="text-zinc-500 mt-1 text-sm">Manage and monitor your autonomous workforce.</p>
         </div>
-        <button 
-          onClick={handleSync}
-          disabled={syncing}
-          className="px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2 disabled:opacity-50"
-        >
-          <RefreshCcw size={14} className={syncing ? 'animate-spin' : ''} />
-          {syncing ? 'Syncing...' : 'Sync Agents'}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={toggleAutopilot}
+            disabled={autopilotBusy}
+            className={`px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2 border ${
+              autopilot?.running
+                ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/15'
+                : 'bg-white/5 text-zinc-300 border-white/10 hover:bg-white/10'
+            } disabled:opacity-50`}
+          >
+            <Zap size={14} className={autopilot?.running ? 'animate-pulse' : ''} />
+            {autopilot?.running ? 'Autopilot On' : 'Autopilot Off'}
+          </button>
+          <button 
+            onClick={handleSync}
+            disabled={syncing}
+            className="px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2 disabled:opacity-50"
+          >
+            <RefreshCcw size={14} className={syncing ? 'animate-spin' : ''} />
+            {syncing ? 'Syncing...' : 'Sync Agents'}
+          </button>
+        </div>
       </div>
 
       <div className="glass rounded-[24px] p-6 border-white/10">

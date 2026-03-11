@@ -22,6 +22,12 @@ import {
 
 // --- Components ---
 
+const scrollToSection = (id: string) => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
 const Navbar = ({ onGetStarted }: { onGetStarted: () => void }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -35,6 +41,8 @@ const Navbar = ({ onGetStarted }: { onGetStarted: () => void }) => {
   }, []);
 
   const navLinks = [
+    { name: 'Services', type: 'hash', value: 'services' },
+    { name: 'Case Studies', type: 'hash', value: 'case-studies' },
     { name: 'Features', type: 'hash', value: 'features' },
     { name: 'How It Works', type: 'hash', value: 'how-it-works' },
     { name: 'Pricing', type: 'hash', value: 'pricing' },
@@ -43,16 +51,12 @@ const Navbar = ({ onGetStarted }: { onGetStarted: () => void }) => {
 
   const handleNavigation = (type: 'hash' | 'path', value: string) => {
     if (type === 'hash') {
-      const element = document.getElementById(value);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth' });
-      } else {
+      if (location.pathname !== '/') {
         navigate('/');
-        // Wait for navigation then scroll
-        setTimeout(() => {
-          document.getElementById(value)?.scrollIntoView({ behavior: 'smooth' });
-        }, 100);
+        setTimeout(() => scrollToSection(value), 50);
+        return;
       }
+      scrollToSection(value);
     } else {
       navigate(value);
     }
@@ -156,6 +160,16 @@ const Hero = ({ onGetStarted }: { onGetStarted: () => void }) => {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [contactedCount, setContactedCount] = useState(1429);
   const cardRef = useRef<HTMLDivElement>(null);
+  const heroOrbs = React.useMemo(
+    () => [
+      { top: '10%', left: '8%', size: 220, color: 'bg-brand-primary/15', blur: 'blur-[60px]', drift: 24, duration: 14 },
+      { top: '22%', left: '78%', size: 260, color: 'bg-brand-secondary/12', blur: 'blur-[70px]', drift: 30, duration: 18 },
+      { top: '62%', left: '12%', size: 180, color: 'bg-brand-accent/10', blur: 'blur-[55px]', drift: 22, duration: 16 },
+      { top: '72%', left: '70%', size: 240, color: 'bg-brand-primary/10', blur: 'blur-[75px]', drift: 26, duration: 20 },
+      { top: '45%', left: '45%', size: 320, color: 'bg-brand-secondary/10', blur: 'blur-[90px]', drift: 18, duration: 22 },
+    ],
+    [],
+  );
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -185,6 +199,7 @@ const Hero = ({ onGetStarted }: { onGetStarted: () => void }) => {
     <section className="relative min-h-screen flex flex-col items-center justify-center pt-32 pb-20 px-6 overflow-hidden aurora-bg">
       {/* Grain Overlay */}
       <div className="absolute inset-0 grain opacity-[0.03] pointer-events-none" />
+      <div className="absolute inset-0 liquid-gradient-shift opacity-40 pointer-events-none" />
       
       {/* Custom Cursor Glow */}
       <motion.div 
@@ -192,6 +207,18 @@ const Hero = ({ onGetStarted }: { onGetStarted: () => void }) => {
         animate={{ x: mousePos.x - 128, y: mousePos.y - 128 }}
         transition={{ type: 'spring', damping: 30, stiffness: 200, mass: 0.5 }}
       />
+
+      <div className="absolute inset-0 pointer-events-none">
+        {heroOrbs.map((o, i) => (
+          <motion.div
+            key={i}
+            className={`absolute rounded-full ${o.color} ${o.blur}`}
+            style={{ width: o.size, height: o.size, top: o.top as any, left: o.left as any }}
+            animate={{ y: [0, -o.drift, 0], x: [0, o.drift / 2, 0] }}
+            transition={{ duration: o.duration, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        ))}
+      </div>
 
       <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center relative z-10">
         <motion.div
@@ -205,7 +232,7 @@ const Hero = ({ onGetStarted }: { onGetStarted: () => void }) => {
             AI-Powered Client Acquisition
           </div>
           
-          <h1 className="text-6xl md:text-7xl font-display font-extrabold leading-[0.9] tracking-tighter text-white italic">
+          <h1 className="text-5xl sm:text-6xl md:text-7xl font-display font-extrabold leading-[0.9] tracking-tighter text-white italic">
             Your <span className="text-brand-secondary">business</span><br />
             <span className="text-gradient">running itself.</span>
           </h1>
@@ -221,6 +248,20 @@ const Hero = ({ onGetStarted }: { onGetStarted: () => void }) => {
             >
               Start Free
               <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
+            </button>
+            <button
+              onClick={() => scrollToSection('services')}
+              className="w-full sm:w-auto px-8 py-4 bg-white/5 border border-white/10 text-white font-bold rounded-2xl hover:bg-white/10 transition-all"
+            >
+              View Services
+            </button>
+          </div>
+          <div>
+            <button
+              onClick={() => scrollToSection('case-studies')}
+              className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 hover:text-brand-secondary transition-colors"
+            >
+              Browse Case Studies →
             </button>
           </div>
 
@@ -475,7 +516,7 @@ const FeatureHighlights = () => {
     { icon: ShieldCheck, title: 'Compliance & Deliverability', desc: 'Respect legal and email best practices.' },
   ];
   return (
-    <section className="py-24 px-6 bg-brand-bg/60">
+    <section id="services" className="py-24 px-6 bg-brand-bg/60">
       <div className="max-w-7xl mx-auto">
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {items.map((item, i) => (
@@ -653,7 +694,7 @@ const SocialProof = () => {
   ];
 
   return (
-    <section className="py-32 px-6 overflow-hidden">
+    <section id="case-studies" className="py-32 px-6 overflow-hidden">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
           <p className="text-brand-primary font-bold uppercase tracking-widest text-xs mb-4">Social Proof</p>
@@ -662,7 +703,7 @@ const SocialProof = () => {
 
         <div className="flex gap-6 overflow-x-auto pb-8 no-scrollbar snap-x">
           {testimonials.map((t, i) => (
-            <div key={i} className="min-w-[350px] glass p-8 rounded-[32px] snap-center space-y-6">
+            <div key={i} className="min-w-[280px] sm:min-w-[350px] glass p-8 rounded-[32px] snap-center space-y-6">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-full bg-zinc-800 overflow-hidden">
                   <img src={`https://picsum.photos/seed/test${i}/100/100`} alt={t.name} referrerPolicy="no-referrer" />
@@ -693,8 +734,8 @@ const Demo = () => {
           <h2 className="text-4xl font-display font-extrabold tracking-tighter italic">See the command center in action</h2>
           <p className="text-zinc-400 text-lg">Watch how agents discover prospects, send personalized outreach, and guide clients to payment — all visible in real time.</p>
           <div className="flex items-center gap-4">
-            <button onClick={() => { window.location.href = '/pricing'; }} className="px-6 py-3 rounded-2xl bg-brand-primary text-white font-bold">Start Free</button>
-            <a href="#features" className="px-6 py-3 rounded-2xl bg-white/5 border border-white/10 text-white font-bold">Explore Features</a>
+            <button onClick={() => scrollToSection('pricing')} className="px-6 py-3 rounded-2xl bg-brand-primary text-white font-bold">Start Free</button>
+            <button onClick={() => scrollToSection('features')} className="px-6 py-3 rounded-2xl bg-white/5 border border-white/10 text-white font-bold">Explore Features</button>
           </div>
         </div>
         <div className="aspect-video rounded-3xl overflow-hidden glass border-white/10 relative">
@@ -841,9 +882,36 @@ const Pricing = () => {
 };
 
 const FinalCTA = ({ onGetStarted }: { onGetStarted: () => void }) => {
+  const dots = React.useMemo(
+    () => [
+      { top: '18%', left: '12%', size: 6, opacity: 0.25, delay: 0 },
+      { top: '30%', left: '78%', size: 5, opacity: 0.18, delay: 0.2 },
+      { top: '55%', left: '86%', size: 7, opacity: 0.22, delay: 0.4 },
+      { top: '72%', left: '20%', size: 5, opacity: 0.16, delay: 0.1 },
+      { top: '82%', left: '66%', size: 6, opacity: 0.2, delay: 0.3 },
+      { top: '40%', left: '44%', size: 4, opacity: 0.14, delay: 0.15 },
+      { top: '64%', left: '10%', size: 7, opacity: 0.2, delay: 0.25 },
+      { top: '24%', left: '56%', size: 5, opacity: 0.16, delay: 0.35 },
+      { top: '58%', left: '30%', size: 6, opacity: 0.18, delay: 0.45 },
+      { top: '12%', left: '88%', size: 4, opacity: 0.14, delay: 0.05 },
+    ],
+    [],
+  );
+
   return (
     <section className="py-32 px-6 relative overflow-hidden">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-brand-primary/20 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute inset-0 pointer-events-none">
+        {dots.map((d, i) => (
+          <motion.div
+            key={i}
+            className="absolute rounded-full bg-white"
+            style={{ width: d.size, height: d.size, top: d.top as any, left: d.left as any, opacity: d.opacity }}
+            animate={{ y: [0, -12, 0], x: [0, 8, 0] }}
+            transition={{ duration: 10 + i, repeat: Infinity, ease: 'easeInOut', delay: d.delay }}
+          />
+        ))}
+      </div>
       
       <div className="max-w-4xl mx-auto text-center relative z-10 space-y-8">
         <h2 className="text-5xl md:text-6xl font-display font-extrabold tracking-tighter italic leading-tight">
@@ -865,6 +933,7 @@ const FinalCTA = ({ onGetStarted }: { onGetStarted: () => void }) => {
 };
 
 const Footer = () => {
+  const onLink = (id: string) => scrollToSection(id);
   return (
     <footer className="py-20 px-6 border-t border-white/5 bg-[#050505]">
       <div className="max-w-7xl mx-auto grid md:grid-cols-4 gap-12">
@@ -894,10 +963,10 @@ const Footer = () => {
         <div>
           <h4 className="text-white font-bold mb-6">Product</h4>
           <ul className="space-y-4 text-sm text-zinc-500">
-            <li><a href="/#features" className="hover:text-brand-secondary transition-colors">Features</a></li>
-            <li><a href="/how-it-works" className="hover:text-brand-secondary transition-colors">How It Works</a></li>
-            <li><a href="/pricing" className="hover:text-brand-secondary transition-colors">Pricing</a></li>
-            <li><a href="/faq" className="hover:text-brand-secondary transition-colors">FAQ</a></li>
+            <li><button type="button" onClick={() => onLink('features')} className="hover:text-brand-secondary transition-colors">Features</button></li>
+            <li><button type="button" onClick={() => onLink('how-it-works')} className="hover:text-brand-secondary transition-colors">How It Works</button></li>
+            <li><button type="button" onClick={() => onLink('pricing')} className="hover:text-brand-secondary transition-colors">Pricing</button></li>
+            <li><button type="button" onClick={() => onLink('faq')} className="hover:text-brand-secondary transition-colors">FAQ</button></li>
           </ul>
         </div>
 
@@ -1006,7 +1075,7 @@ export default function LandingPage({
   }, []);
 
   return (
-    <div className="bg-brand-bg text-zinc-100 selection:bg-brand-primary/30 min-h-screen overflow-y-auto">
+    <div className="bg-brand-bg text-zinc-100 selection:bg-brand-primary/30 min-h-screen">
       <Navbar onGetStarted={onEnterApp} />
       <Hero onGetStarted={onEnterApp} />
       <AgentShowcase />

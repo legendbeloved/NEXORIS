@@ -13,8 +13,6 @@ import {
   ArrowLeft,
   ShieldCheck,
   AlertCircle,
-  Sun,
-  Moon,
   ExternalLink,
   Home,
   Calendar,
@@ -242,7 +240,6 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({ token }) => {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isDarkMode, setIsDarkMode] = useState(true);
   const [isTyping, setIsTyping] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
@@ -381,9 +378,9 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({ token }) => {
   }
 
   return (
-    <div className={`min-h-screen transition-colors duration-500 ${isDarkMode ? 'bg-brand-bg text-zinc-300' : 'bg-zinc-50 text-zinc-800'}`}>
+    <div className="min-h-screen transition-colors duration-500 bg-brand-bg text-zinc-300">
       {/* Header */}
-      <header className={`h-20 border-b sticky top-0 z-50 backdrop-blur-xl flex items-center justify-between px-6 md:px-12 ${isDarkMode ? 'border-white/5 bg-brand-bg/80' : 'border-black/5 bg-white/80'}`}>
+      <header className="h-20 border-b sticky top-0 z-50 backdrop-blur-xl flex items-center justify-between px-6 md:px-12 border-white/5 bg-brand-bg/80">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-brand-primary rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(91,76,245,0.3)]">
             <Zap className="text-white fill-white" size={24} />
@@ -395,10 +392,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({ token }) => {
         </div>
 
         <div className="flex items-center gap-4">
-          <button onClick={() => setIsDarkMode(!isDarkMode)} className={`p-2 rounded-xl border transition-all ${isDarkMode ? 'border-white/10 text-zinc-400 hover:text-white' : 'border-black/10 text-zinc-500 hover:text-black'}`}>
-            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
-          <div className={`px-4 py-2 rounded-xl border text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 ${isDarkMode ? 'border-white/10 bg-white/5 text-emerald-500' : 'border-black/10 bg-black/5 text-emerald-600'}`}>
+          <div className="px-4 py-2 rounded-xl border text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 border-white/10 bg-white/5 text-emerald-500">
             <ShieldCheck size={14} />
             Secure Session
           </div>

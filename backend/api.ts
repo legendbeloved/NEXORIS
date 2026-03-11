@@ -93,6 +93,17 @@ function initDb() {
     value REAL,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS team_members (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    role TEXT NOT NULL DEFAULT 'Member',
+    status TEXT NOT NULL DEFAULT 'Active',
+    avatar TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
   `);
 
   try {
@@ -101,6 +112,20 @@ function initDb() {
   try {
     db.prepare("ALTER TABLE prospects ADD COLUMN signals TEXT").run();
   } catch { }
+
+  const alter = (sql: string) => {
+    try {
+      db.prepare(sql).run();
+    } catch { }
+  };
+
+  alter("ALTER TABLE outreach ADD COLUMN variant TEXT");
+  alter("ALTER TABLE outreach ADD COLUMN subject TEXT");
+  alter("ALTER TABLE outreach ADD COLUMN body TEXT");
+  alter("ALTER TABLE outreach ADD COLUMN mockup_preview TEXT");
+  alter("ALTER TABLE outreach ADD COLUMN sent_at DATETIME");
+  alter("ALTER TABLE outreach ADD COLUMN opened_at DATETIME");
+  alter("ALTER TABLE outreach ADD COLUMN clicked_at DATETIME");
 
   return db;
 }
@@ -225,6 +250,29 @@ export function createApiApp() {
   const db = initDb();
   const genAI = createGenAI();
   const modelName = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+  const agentWorkerUrl = (process.env.AGENT_WORKER_URL || "").trim();
+  const agentWorkerSecret = (process.env.AGENT_WORKER_SECRET || "").trim();
+
+  const callAgentWorker = async (path: string, payload: any) => {
+    if (!agentWorkerUrl || !agentWorkerSecret) return null;
+    try {
+      const url = `${agentWorkerUrl.replace(/\/$/, "")}${path}`;
+      const r = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-agent-secret": agentWorkerSecret,
+        },
+        body: JSON.stringify(payload || {}),
+      });
+      const text = await r.text();
+      const json = safeJsonParse<any>(text, null);
+      if (!r.ok) return { ok: false, status: r.status, data: json || text };
+      return { ok: true, status: r.status, data: json || text };
+    } catch (e) {
+      return { ok: false, status: 0, data: null };
+    }
+  };
 
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true });
@@ -242,6 +290,143 @@ export function createApiApp() {
     db.prepare(
       "INSERT INTO settings (key, value) VALUES ('agent_config', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
     ).run(serialized);
+    res.json({ status: "ok" });
+  });
+
+  app.get("/api/profile", (_req, res) => {
+    const row = db.prepare("SELECT value FROM settings WHERE key = 'profile'").get() as any;
+    const value = safeJsonParse<any>(row?.value, {
+      firstName: "Habibullah",
+      lastName: "Isaliu",
+      email: "habibullah@nexoris.ai",
+      roleTitle: "Platform Owner",
+      avatarUrl: "https://picsum.photos/seed/owner/200/200",
+      memberSince: "March 2026",
+    });
+    res.json(value);
+  });
+
+  app.patch("/api/profile", (req, res) => {
+    const payload = req.body || {};
+    const serialized = JSON.stringify(payload);
+    db.prepare(
+      "INSERT INTO settings (key, value) VALUES ('profile', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+    ).run(serialized);
+    res.json({ status: "ok" });
+  });
+
+  app.get("/api/settings/billing", (_req, res) => {
+    const row = db.prepare("SELECT value FROM settings WHERE key = 'billing_settings'").get() as any;
+    const value = safeJsonParse<any>(row?.value, {
+      plan: "Pro",
+      currency: "USD",
+      invoiceEmail: "billing@nexoris.ai",
+      autoRenew: true,
+      taxId: "",
+    });
+    res.json(value);
+  });
+
+  app.patch("/api/settings/billing", (req, res) => {
+    const payload = req.body || {};
+    const serialized = JSON.stringify(payload);
+    db.prepare(
+      "INSERT INTO settings (key, value) VALUES ('billing_settings', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+    ).run(serialized);
+    res.json({ status: "ok" });
+  });
+
+  app.get("/api/settings/notifications", (_req, res) => {
+    const row = db.prepare("SELECT value FROM settings WHERE key = 'notification_settings'").get() as any;
+    const value = safeJsonParse<any>(row?.value, {
+      inApp: true,
+      email: true,
+      weeklySummary: true,
+      agentAlerts: true,
+      dealAlerts: true,
+      marketing: false,
+    });
+    res.json(value);
+  });
+
+  app.patch("/api/settings/notifications", (req, res) => {
+    const payload = req.body || {};
+    const serialized = JSON.stringify(payload);
+    db.prepare(
+      "INSERT INTO settings (key, value) VALUES ('notification_settings', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+    ).run(serialized);
+    res.json({ status: "ok" });
+  });
+
+  app.get("/api/team", (_req, res) => {
+    const countRow = db.prepare("SELECT COUNT(*) as count FROM team_members").get() as any;
+    const count = Number(countRow?.count || 0);
+    if (count === 0) {
+      const seed = [
+        { name: "Habibullah Isaliu", email: "habibullah@nexoris.ai", role: "Owner", status: "Active", avatar: "https://picsum.photos/seed/owner/100/100" },
+        { name: "Sarah Chen", email: "sarah@nexoris.ai", role: "Admin", status: "Active", avatar: "https://picsum.photos/seed/sarah/100/100" },
+        { name: "Mike Ross", email: "mike@nexoris.ai", role: "Member", status: "Pending", avatar: null },
+      ];
+      const stmt = db.prepare("INSERT INTO team_members (name, email, role, status, avatar) VALUES (?, ?, ?, ?, ?)");
+      for (const m of seed) {
+        try {
+          stmt.run(m.name, m.email, m.role, m.status, m.avatar);
+        } catch { }
+      }
+    }
+    const rows = db.prepare("SELECT * FROM team_members ORDER BY id ASC").all() as any[];
+    res.json(rows);
+  });
+
+  app.post("/api/team", (req, res) => {
+    const { name, email, role, status, avatar } = req.body || {};
+    const n = String(name || "").trim();
+    const e = String(email || "").trim().toLowerCase();
+    const r = String(role || "Member").trim();
+    const s = String(status || "Pending").trim();
+    if (!n || !e) return res.status(400).json({ error: "name and email required" });
+
+    try {
+      const result = db
+        .prepare("INSERT INTO team_members (name, email, role, status, avatar, updated_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)")
+        .run(n, e, r, s, avatar ? String(avatar) : null);
+      const row = db.prepare("SELECT * FROM team_members WHERE id = ?").get(result.lastInsertRowid) as any;
+      res.json(row);
+    } catch {
+      res.status(409).json({ error: "member already exists" });
+    }
+  });
+
+  app.patch("/api/team/:id", (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ error: "invalid id" });
+    const existing = db.prepare("SELECT * FROM team_members WHERE id = ?").get(id) as any;
+    if (!existing) return res.status(404).json({ error: "not found" });
+
+    const patch = req.body || {};
+    const next = {
+      name: typeof patch.name === "string" ? patch.name.trim() : existing.name,
+      email: typeof patch.email === "string" ? patch.email.trim().toLowerCase() : existing.email,
+      role: typeof patch.role === "string" ? patch.role.trim() : existing.role,
+      status: typeof patch.status === "string" ? patch.status.trim() : existing.status,
+      avatar: typeof patch.avatar === "string" ? patch.avatar.trim() : existing.avatar,
+    };
+
+    try {
+      db.prepare(
+        "UPDATE team_members SET name = ?, email = ?, role = ?, status = ?, avatar = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+      ).run(next.name, next.email, next.role, next.status, next.avatar || null, id);
+      const row = db.prepare("SELECT * FROM team_members WHERE id = ?").get(id) as any;
+      res.json(row);
+    } catch {
+      res.status(409).json({ error: "email already exists" });
+    }
+  });
+
+  app.delete("/api/team/:id", (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ error: "invalid id" });
+    db.prepare("DELETE FROM team_members WHERE id = ?").run(id);
     res.json({ status: "ok" });
   });
 
@@ -372,6 +557,39 @@ export function createApiApp() {
     res.json({ success: true });
   });
 
+  app.post("/api/internal/agent/notify", (req, res) => {
+    const secret = String(req.headers["x-agent-secret"] || "");
+    if (!agentWorkerSecret || secret !== agentWorkerSecret) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const payload = req.body || {};
+    const agentNumber = Number(payload.agent_number || payload.agent || payload.agentId || 0);
+    const action = String(payload.action || "").trim();
+    const status = String(payload.status || "").trim();
+    const messageFromDetails = payload?.details?.message ? String(payload.details.message) : "";
+    const message =
+      messageFromDetails ||
+      [agentNumber ? `Agent ${agentNumber}` : "Agent", action, status].filter(Boolean).join(" - ");
+
+    const type =
+      status.toUpperCase() === "SUCCESS"
+        ? "success"
+        : status.toUpperCase() === "ERROR"
+          ? "error"
+          : status.toUpperCase() === "RUNNING"
+            ? "info"
+            : "info";
+
+    db.prepare("INSERT INTO notifications (message, type, agent_id) VALUES (?, ?, ?)").run(
+      message,
+      type,
+      Number.isFinite(agentNumber) ? agentNumber : null,
+    );
+
+    res.json({ ok: true });
+  });
+
   app.get("/api/client/auth/:token", (req, res) => {
     const { token } = req.params;
     const prospect = db.prepare("SELECT * FROM prospects WHERE token = ?").get(token) as any;
@@ -454,15 +672,30 @@ export function createApiApp() {
     res.json({ status: "success", checkoutUrl: "https://checkout.stripe.com/pay/mock_session" });
   });
 
-  app.post("/api/agents/discovery", async (req, res) => {
+  const runDiscovery = async (body: any) => {
+    const workerRes =
+      agentWorkerUrl && agentWorkerSecret ? await callAgentWorker("/api/agents/1/start", { owner_id: "demo" }) : null;
+    if (workerRes?.ok) return { status: "success", mode: "worker", worker: workerRes };
+    if (workerRes && !workerRes.ok) {
+      try {
+        db.prepare("INSERT INTO notifications (message, type, agent_id) VALUES (?, ?, ?)").run(
+          `Worker Agent 1 unavailable (status ${workerRes.status}). Falling back to local execution.`,
+          "warning",
+          1,
+        );
+      } catch { }
+    }
+
     const cfgRow = db.prepare("SELECT value FROM settings WHERE key = 'agent_config'").get() as any;
     const cfg = safeJsonParse<any>(cfgRow?.value, {});
-    const { category, location } = req.body || {};
+    const { category, location } = body || {};
     const targetCategory = category || cfg?.global?.categories?.[0] || "E-commerce";
     const targetLocation = location || cfg?.global?.targetRegion || "San Francisco, CA";
     const depth = cfg?.agent1?.searchDepth ?? 4;
     const revenueWeight = cfg?.agent1?.scoringWeightRevenue ?? 85;
-    const criteria = Array.isArray(cfg?.agent1?.gapCriteria) ? cfg.agent1.gapCriteria.join(", ") : "Slow mobile site, No online booking, Poor SEO";
+    const criteria = Array.isArray(cfg?.agent1?.gapCriteria)
+      ? cfg.agent1.gapCriteria.join(", ")
+      : "Slow mobile site, No online booking, Poor SEO";
 
     const businessesPrompt = `Generate 5 real-looking business names and websites for the category "${targetCategory}" in "${targetLocation}". 
 Return a JSON array of objects with keys "name" and "website". 
@@ -515,8 +748,7 @@ Use local-sounding names. If the category is general, be specific.`;
 
     for (const biz of mockBusinesses) {
       try {
-        const token =
-          Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
         const siteText = await fetchText(biz.website);
 
         const analysisPrompt = `You are Agent 1. Analyze the digital presence gaps of a business.\nBusiness: ${biz.name}\nWebsite: ${biz.website}\nLocation: ${targetLocation}\nCategory: ${targetCategory}\nGap criteria: ${criteria}\nWebsite text snippet:\n${siteText}\nReturn JSON with keys:\n- gapAnalysis: string (short)\n- painPoints: string[]\n- email: string\n- phone: string\n- signals: object { hasBooking:boolean, mobileIssues:boolean, seoIssues:boolean, hasContact:boolean, hasBlog:boolean }\n- quickWin: string\nKeep it realistic.\n`;
@@ -548,10 +780,28 @@ Use local-sounding names. If the category is general, be specific.`;
       } catch { }
     }
 
-    res.json({ status: "success", message: "Discovery complete", depth });
+    return { status: "success", mode: "local", message: "Discovery complete", depth };
+  };
+
+  app.post("/api/agents/discovery", async (req, res) => {
+    const result = await runDiscovery(req.body);
+    res.json(result);
   });
 
-  app.post("/api/agents/outreach", async (_req, res) => {
+  const runOutreach = async () => {
+    const workerRes =
+      agentWorkerUrl && agentWorkerSecret ? await callAgentWorker("/api/agents/2/start", { owner_id: "demo" }) : null;
+    if (workerRes?.ok) return { status: "success", mode: "worker", worker: workerRes };
+    if (workerRes && !workerRes.ok) {
+      try {
+        db.prepare("INSERT INTO notifications (message, type, agent_id) VALUES (?, ?, ?)").run(
+          `Worker Agent 2 unavailable (status ${workerRes.status}). Falling back to local execution.`,
+          "warning",
+          2,
+        );
+      } catch { }
+    }
+
     const cfgRow = db.prepare("SELECT value FROM settings WHERE key = 'agent_config'").get() as any;
     const cfg = safeJsonParse<any>(cfgRow?.value, {});
     const sendLimit = Math.min(1000, Math.max(1, cfg?.agent2?.dailySendLimit || 5));
@@ -589,27 +839,22 @@ Write JSON with keys "subject" and "body" and "mockup_description".
           const responseText = await generateAIContent(genAI, modelName, prompt, true);
           const j = safeJsonParse<any>(responseText, {});
           const subject =
-            (j.subject || "").toString().trim() ||
-            `Quick idea to improve ${p.name}'s ${p.category || "website"}`.trim();
+            (j.subject || "").toString().trim() || `Quick idea to improve ${p.name}'s ${p.category || "website"}`.trim();
           const body =
             (j.body || "").toString().trim() ||
             `Hi ${p.name},\n\nNoticed a couple quick wins on ${p.website} that could improve conversions. If you're open to it, I can share a short audit + a lightweight mockup concept.\n\nBest,\n${identity}`.trim();
-          const mockup = (j.mockup_description || "").toString().trim() || "A performance-optimized landing + booking flow concept.";
-          db.prepare("INSERT INTO outreach (prospect_id, variant, subject, body, mockup_preview, sent_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)").run(
-            p.id,
-            v,
-            subject,
-            body,
-            mockup,
-          );
+          const mockup =
+            (j.mockup_description || "").toString().trim() || "A performance-optimized landing + booking flow concept.";
+          db.prepare(
+            "INSERT INTO outreach (prospect_id, variant, subject, body, mockup_preview, sent_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
+          ).run(p.id, v, subject, body, mockup);
         }
 
-        // Try to send real email if prospect has one
         if (p.email && process.env.RESEND_API_KEY) {
           await sendEmail(
             p.email,
             `Quick idea for ${p.name}`,
-            `<p>Hi ${p.name},</p><p>Noticed some digital gaps on your site ${p.website}. I've prepared a custom mockup for you.</p><p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/client/${p.token}">View your personalized portal here</a></p>`
+            `<p>Hi ${p.name},</p><p>Noticed some digital gaps on your site ${p.website}. I've prepared a custom mockup for you.</p><p><a href="${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/client/${p.token}">View your personalized portal here</a></p>`,
           );
         }
 
@@ -622,7 +867,228 @@ Write JSON with keys "subject" and "body" and "mockup_description".
       } catch { }
     }
 
-    res.json({ status: "success", message: "Outreach complete", processed: prospects.length });
+    return { status: "success", mode: "local", message: "Outreach complete", processed: prospects.length };
+  };
+
+  app.post("/api/agents/outreach", async (_req, res) => {
+    const result = await runOutreach();
+    res.json(result);
+  });
+
+  const runNegotiation = async () => {
+    const workerRes =
+      agentWorkerUrl && agentWorkerSecret ? await callAgentWorker("/api/agents/3/start", { owner_id: "demo" }) : null;
+    if (workerRes?.ok) return { status: "success", mode: "worker", worker: workerRes };
+    if (workerRes && !workerRes.ok) {
+      try {
+        db.prepare("INSERT INTO notifications (message, type, agent_id) VALUES (?, ?, ?)").run(
+          `Worker Agent 3 unavailable (status ${workerRes.status}). Falling back to local execution.`,
+          "warning",
+          3,
+        );
+      } catch { }
+    }
+
+    const cfgRow = db.prepare("SELECT value FROM settings WHERE key = 'agent_config'").get() as any;
+    const cfg = safeJsonParse<any>(cfgRow?.value, {});
+    const rules = Array.isArray(cfg?.agent3?.rules) ? cfg.agent3.rules : [];
+    const fallbackRule = { service: "SEO Audit", min: 500, max: 1500 };
+    const rule = rules[0] || fallbackRule;
+    const service = String(rule.service || fallbackRule.service);
+    const min = Math.max(1, Number(rule.min || fallbackRule.min));
+    const max = Math.max(min, Number(rule.max || fallbackRule.max));
+
+    const candidates = db
+      .prepare("SELECT * FROM prospects WHERE status IN ('contacted','opened','replied','interested','agreed') ORDER BY updated_at DESC LIMIT 10")
+      .all() as any[];
+
+    let processed = 0;
+    let progressed = 0;
+
+    for (const p of candidates) {
+      try {
+        const status = String(p.status || "");
+        if (status === "contacted" || status === "opened") {
+          db.prepare("UPDATE prospects SET status = 'replied', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(p.id);
+          db.prepare("INSERT INTO messages (prospect_id, sender, content) VALUES (?, ?, ?)").run(
+            p.id,
+            "client",
+            "Hi — thanks. This looks interesting. Can you share pricing and timeline?",
+          );
+          db.prepare("INSERT INTO notifications (message, type, agent_id) VALUES (?, ?, ?)").run(
+            `New reply received from ${p.name}. Agent 3 is negotiating.`,
+            "info",
+            3,
+          );
+          progressed++;
+        } else if (status === "replied" || status === "interested") {
+          const amount = Math.round(min + Math.random() * (max - min));
+          db.prepare("UPDATE prospects SET status = 'agreed', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(p.id);
+          db.prepare("INSERT INTO deals (prospect_id, amount, status) VALUES (?, ?, ?)").run(p.id, amount, "pending");
+          db.prepare("INSERT INTO projects (prospect_id, service_type, status, deadline) VALUES (?, ?, 'pending', ?)").run(
+            p.id,
+            service,
+            new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+          );
+          db.prepare("INSERT INTO notifications (message, type, agent_id) VALUES (?, ?, ?)").run(
+            `Deal agreed with ${p.name}: $${amount.toLocaleString("en-US")} for ${service}.`,
+            "success",
+            3,
+          );
+          progressed++;
+        }
+        processed++;
+      } catch { }
+    }
+
+    return { status: "success", mode: "local", message: "Negotiation complete", processed, progressed };
+  };
+
+  app.post("/api/agents/negotiation", async (_req, res) => {
+    const result = await runNegotiation();
+    res.json(result);
+  });
+
+  const autopilot = {
+    running: false,
+    intervalMs: 30000,
+    startedAt: null as number | null,
+    lastTickAt: null as number | null,
+    inFlight: false,
+    lastResult: null as any,
+    timer: null as any,
+    lastDiscoveryAt: null as number | null,
+    lastOutreachAt: null as number | null,
+    lastNegotiationAt: null as number | null,
+  };
+
+  const countProspectsByStatus = (status: string) => {
+    const row = db.prepare("SELECT COUNT(*) as count FROM prospects WHERE status = ?").get(status) as any;
+    return Number(row?.count || 0);
+  };
+
+  const scheduleAutopilot = () => {
+    if (autopilot.timer) {
+      try {
+        clearTimeout(autopilot.timer);
+      } catch { }
+    }
+    if (!autopilot.running) return;
+    autopilot.timer = setTimeout(() => tickAutopilot(), autopilot.intervalMs);
+  };
+
+  const tickAutopilot = async () => {
+    if (!autopilot.running) return;
+    if (autopilot.inFlight) return scheduleAutopilot();
+
+    autopilot.inFlight = true;
+    autopilot.lastTickAt = Date.now();
+
+    try {
+      const cfgRow = db.prepare("SELECT value FROM settings WHERE key = 'agent_config'").get() as any;
+      const cfg = safeJsonParse<any>(cfgRow?.value, {});
+      const category = cfg?.global?.categories?.[0] || "E-commerce";
+      const location = cfg?.global?.targetRegion || "San Francisco, CA";
+
+      const discovered = countProspectsByStatus("discovered");
+      const contacted = countProspectsByStatus("contacted");
+      const replied = countProspectsByStatus("replied");
+      const interested = countProspectsByStatus("interested");
+
+      const shouldDiscover = discovered < 5 || !autopilot.lastDiscoveryAt || Date.now() - autopilot.lastDiscoveryAt > 10 * 60 * 1000;
+      const shouldOutreach = discovered > 0 || !autopilot.lastOutreachAt || Date.now() - autopilot.lastOutreachAt > 3 * 60 * 1000;
+      const shouldNegotiate = contacted + replied + interested > 0 || !autopilot.lastNegotiationAt || Date.now() - autopilot.lastNegotiationAt > 3 * 60 * 1000;
+
+      const result: any = { tick_at: new Date().toISOString(), ran: [] as string[] };
+
+      if (shouldDiscover) {
+        result.discovery = await runDiscovery({ category, location });
+        autopilot.lastDiscoveryAt = Date.now();
+        result.ran.push("discovery");
+      }
+
+      const discoveredAfter = countProspectsByStatus("discovered");
+      if (shouldOutreach && discoveredAfter > 0) {
+        result.outreach = await runOutreach();
+        autopilot.lastOutreachAt = Date.now();
+        result.ran.push("outreach");
+      }
+
+      const contactedAfter = countProspectsByStatus("contacted");
+      const repliedAfter = countProspectsByStatus("replied");
+      const interestedAfter = countProspectsByStatus("interested");
+      if (shouldNegotiate && contactedAfter + repliedAfter + interestedAfter > 0) {
+        result.negotiation = await runNegotiation();
+        autopilot.lastNegotiationAt = Date.now();
+        result.ran.push("negotiation");
+      }
+
+      autopilot.lastResult = result;
+      try {
+        db.prepare("INSERT INTO notifications (message, type, agent_id) VALUES (?, ?, ?)").run(
+          `Autopilot tick completed: ${result.ran.length ? result.ran.join(" → ") : "idle"}`,
+          "info",
+          0,
+        );
+      } catch { }
+    } finally {
+      autopilot.inFlight = false;
+      scheduleAutopilot();
+    }
+  };
+
+  app.get("/api/agents/autopilot/status", (_req, res) => {
+    res.json({
+      running: autopilot.running,
+      intervalMs: autopilot.intervalMs,
+      startedAt: autopilot.startedAt,
+      lastTickAt: autopilot.lastTickAt,
+      inFlight: autopilot.inFlight,
+      lastResult: autopilot.lastResult,
+    });
+  });
+
+  app.post("/api/agents/autopilot/start", (req, res) => {
+    const nextInterval = Number(req.body?.intervalMs);
+    if (Number.isFinite(nextInterval) && nextInterval >= 5000) autopilot.intervalMs = Math.floor(nextInterval);
+    if (!autopilot.running) {
+      autopilot.running = true;
+      autopilot.startedAt = Date.now();
+      autopilot.lastTickAt = null;
+      autopilot.lastResult = null;
+      autopilot.inFlight = false;
+      autopilot.lastDiscoveryAt = null;
+      autopilot.lastOutreachAt = null;
+      autopilot.lastNegotiationAt = null;
+      try {
+        db.prepare("INSERT INTO notifications (message, type, agent_id) VALUES (?, ?, ?)").run(
+          "Autopilot started. Agents are running continuously.",
+          "success",
+          0,
+        );
+      } catch { }
+      setTimeout(() => tickAutopilot(), 100);
+    }
+    res.json({ running: autopilot.running, intervalMs: autopilot.intervalMs });
+  });
+
+  app.post("/api/agents/autopilot/stop", (_req, res) => {
+    autopilot.running = false;
+    autopilot.inFlight = false;
+    if (autopilot.timer) {
+      try {
+        clearTimeout(autopilot.timer);
+      } catch { }
+      autopilot.timer = null;
+    }
+    try {
+      db.prepare("INSERT INTO notifications (message, type, agent_id) VALUES (?, ?, ?)").run(
+        "Autopilot stopped.",
+        "warning",
+        0,
+      );
+    } catch { }
+    res.json({ running: autopilot.running });
   });
 
   app.post("/api/agents/mission", async (req, res) => {
@@ -646,7 +1112,13 @@ Write JSON with keys "subject" and "body" and "mockup_description".
       });
       const outreach = outreachRes.ok ? await outreachRes.json() : { status: "error" };
 
-      res.json({ status: "success", discovery, outreach });
+      const negotiationRes = await fetch(`${baseUrl}/api/agents/negotiation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const negotiation = negotiationRes.ok ? await negotiationRes.json() : { status: "error" };
+
+      res.json({ status: "success", discovery, outreach, negotiation });
     } catch (e) {
       res.status(500).json({ status: "error", message: "Mission failed" });
     }

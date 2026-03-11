@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { Sun, Moon, Search, Menu, User, Settings, HelpCircle, CreditCard, LogOut, ChevronDown } from 'lucide-react';
+import { Search, Menu, User, Settings, HelpCircle, CreditCard, LogOut, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { NotificationBell } from '../notifications/NotificationBell';
-import { useTheme } from '../ThemeProvider';
 import { useNavigate } from 'react-router-dom';
 import { useAgentStore, useAgentConfig } from '../../store/dashboardStore';
 import { Zap } from 'lucide-react';
@@ -13,8 +12,6 @@ interface TopBarProps {
 }
 
 export const TopBar: React.FC<TopBarProps> = ({ activeTab, onMenuToggle }) => {
-  const { theme, toggleTheme } = useTheme();
-  const isDark = theme === 'dark';
   const navigate = useNavigate();
   const { isSquadMissionActive, startSquadMission } = useAgentStore();
   const { config } = useAgentConfig();

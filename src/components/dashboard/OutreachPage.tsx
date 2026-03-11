@@ -36,29 +36,31 @@ export const OutreachPage: React.FC = () => {
           <h1 className="text-3xl font-display font-bold text-white italic tracking-tight">Outreach Command</h1>
           <p className="text-zinc-500 mt-1 text-sm">Manage your automated communication sequences.</p>
         </div>
-        <button className="px-6 py-2.5 bg-brand-primary text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:scale-105 transition-all flex items-center gap-2 shadow-lg shadow-brand-primary/20">
+        <button className="w-full sm:w-auto justify-center px-6 py-2.5 bg-brand-primary text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:scale-105 transition-all flex items-center gap-2 shadow-lg shadow-brand-primary/20">
           <Plus size={14} />
           New Template
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 p-1 bg-white/5 rounded-2xl w-fit border border-white/5">
-        {[
-          { id: 'templates', label: 'Templates' },
-          { id: 'sent', label: 'Sent Outreach' },
-          { id: 'analytics', label: 'Analytics' }
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
-              activeTab === tab.id ? 'bg-brand-primary text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="max-w-full overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-2 p-1 bg-white/5 rounded-2xl w-max border border-white/5">
+          {[
+            { id: 'templates', label: 'Templates' },
+            { id: 'sent', label: 'Sent Outreach' },
+            { id: 'analytics', label: 'Analytics' }
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`px-4 sm:px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
+                activeTab === tab.id ? 'bg-brand-primary text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <AnimatePresence mode="wait">
@@ -80,7 +82,7 @@ export const OutreachPage: React.FC = () => {
                   className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-brand-primary/50 transition-all"
                 />
               </div>
-              <button className="px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-zinc-500 hover:text-white transition-all flex items-center gap-2 text-sm font-bold">
+              <button className="w-full sm:w-auto justify-center px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-zinc-500 hover:text-white transition-all flex items-center gap-2 text-sm font-bold">
                 <Filter size={16} />
                 Filter
               </button>
@@ -99,7 +101,7 @@ export const OutreachPage: React.FC = () => {
                       </div>
                       <div>
                         <h3 className="font-bold text-white">{template.name}</h3>
-                        <p className="text-[10px] text-zinc-500 font-mono truncate max-w-[200px]">{template.subject}</p>
+                        <p className="text-[10px] text-zinc-500 font-mono truncate max-w-[240px] sm:max-w-[200px]">{template.subject}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
@@ -109,7 +111,7 @@ export const OutreachPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4 mb-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                     <div className="p-3 rounded-2xl bg-black/20 border border-white/5 text-center">
                       <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest mb-1">Open Rate</p>
                       <p className="text-sm font-mono text-emerald-500">{template.openRate}</p>
@@ -159,12 +161,12 @@ export const OutreachPage: React.FC = () => {
                       </div>
                       <div>
                         <h3 className="font-bold text-white">{item.prospect_name}</h3>
-                        <p className="text-xs text-zinc-400 font-medium truncate max-w-[300px]">{item.subject}</p>
+                        <p className="text-xs text-zinc-400 font-medium truncate max-w-[240px] sm:max-w-[300px]">{item.subject}</p>
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-8">
-                      <div className="text-center">
+                    <div className="grid grid-cols-2 sm:flex sm:items-center gap-4 sm:gap-8 w-full md:w-auto">
+                      <div className="text-left sm:text-center">
                         <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest mb-1">Status</p>
                         <div className="flex items-center gap-2">
                           {item.opened_at ? <CheckCircle2 size={12} className="text-emerald-500" /> : <Clock size={12} className="text-zinc-500" />}
@@ -173,11 +175,11 @@ export const OutreachPage: React.FC = () => {
                           </span>
                         </div>
                       </div>
-                      <div className="text-center">
+                      <div className="text-right sm:text-center">
                         <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest mb-1">Variant</p>
                         <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[10px] font-bold text-white">{item.variant}</span>
                       </div>
-                      <div className="text-right">
+                      <div className="col-span-2 sm:col-span-1 text-left sm:text-right">
                         <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest mb-1">Sent Date</p>
                         <p className="text-[10px] font-mono text-zinc-400">{new Date(item.sent_at).toLocaleDateString()}</p>
                       </div>

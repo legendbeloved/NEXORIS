@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Mail, ArrowLeft, Loader2, CheckCircle2, ArrowRight } from 'lucide-react';
+import { isSupabaseConfigured, supabaseClient } from '../../lib/supabase';
 
 interface ForgotPasswordProps {
   onBack: () => void;
@@ -17,11 +18,25 @@ export const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onBack }) => {
     setLoading(true);
     setError(null);
 
-    // Simulate API call
-    setTimeout(() => {
+    if (!isSupabaseConfigured) {
       setLoading(false);
-      setSuccess(true);
-    }, 1500);
+      setError('Auth is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env.local.');
+      return;
+    }
+
+    try {
+      const redirectTo = `${window.location.origin}/reset-password`;
+      const { error: err } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo });
+      if (err) {
+        setError(err.message);
+      } else {
+        setSuccess(true);
+      }
+    } catch {
+      setError('Failed to send reset email. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

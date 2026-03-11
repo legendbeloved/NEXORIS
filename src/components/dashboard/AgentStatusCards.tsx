@@ -2,10 +2,12 @@ import React from 'react';
 import { Cpu, Send, MessageSquare, Play, Square } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAgentStore, useAgentConfig } from '../../store/dashboardStore';
+import { useQueryClient } from '@tanstack/react-query';
 
 export const AgentStatusCards: React.FC = () => {
   const { agents, toggleAgent, updateAgent } = useAgentStore();
   const { config } = useAgentConfig();
+  const queryClient = useQueryClient();
 
   const handleToggle = async (id: number) => {
     const agent = agents.find(a => a.id === id);
@@ -24,6 +26,8 @@ export const AgentStatusCards: React.FC = () => {
           payload = { category: config.global.categories[0] || 'SaaS', location: config.global.targetRegion || 'San Francisco, CA' };
         } else if (id === 2) {
           endpoint = '/api/agents/outreach';
+        } else if (id === 3) {
+          endpoint = '/api/agents/negotiation';
         }
 
         if (endpoint) {
@@ -44,6 +48,13 @@ export const AgentStatusCards: React.FC = () => {
             if (res.ok) {
               const data = await res.json();
               if (data.status === 'success') {
+                await queryClient.invalidateQueries({ queryKey: ['prospects'] });
+                await queryClient.invalidateQueries({ queryKey: ['stats'] });
+                await queryClient.invalidateQueries({ queryKey: ['outreach'] });
+                await queryClient.invalidateQueries({ queryKey: ['deals'] });
+                await queryClient.invalidateQueries({ queryKey: ['projects'] });
+                await queryClient.invalidateQueries({ queryKey: ['notifications'] });
+                await queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count'] });
                 updateAgent(id, { currentAction: 'Task completed successfully', status: 'IDLE', progress: 100 });
               } else {
                 updateAgent(id, { status: 'ERROR', currentAction: 'Operation failed' });

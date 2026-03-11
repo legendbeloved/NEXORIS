@@ -45,12 +45,12 @@ export const PaymentsPage: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-display font-bold text-white italic tracking-tight">Financial Command</h1>
           <p className="text-zinc-500 mt-1 text-sm">Track revenue, transactions, and payment status.</p>
         </div>
-        <button className="px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2">
+        <button className="w-full sm:w-auto justify-center px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2">
           <Download size={14} />
           Export CSV
         </button>
@@ -119,7 +119,39 @@ export const PaymentsPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="md:hidden p-4 space-y-3">
+          {displayTransactions.map((tx) => (
+            <div key={tx.id} className="p-4 rounded-2xl bg-white/[0.03] border border-white/10">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-bold text-white truncate">{tx.client}</div>
+                  <div className="mt-1 text-[10px] text-zinc-500 font-mono truncate">{tx.method}</div>
+                </div>
+                <div className="shrink-0 text-right">
+                  <div className="font-mono text-sm text-zinc-300">${tx.amount.toLocaleString()}</div>
+                  <div className="mt-2">
+                    <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest border ${
+                      tx.status === 'Succeeded' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                      tx.status === 'Pending' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
+                      'bg-red-500/10 text-red-500 border-red-500/20'
+                    }`}>
+                      {tx.status}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <div className="text-xs text-zinc-500 truncate">{tx.date}</div>
+                <button className="p-2 rounded-xl bg-white/5 border border-white/10 text-zinc-500 hover:text-white transition-colors">
+                  <Download size={16} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[800px]">
             <thead>
               <tr className="border-b border-white/5 bg-white/5">

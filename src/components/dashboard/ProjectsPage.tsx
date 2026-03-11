@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Folder, Clock, CheckCircle2, AlertCircle, MoreVertical, Plus, Search, Filter, ExternalLink, Calendar, User, MessageSquare, Loader2 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { EntityDetailModal } from './EntityDetailModal';
 
 interface Project {
@@ -16,6 +16,8 @@ interface Project {
 
 export const ProjectsPage: React.FC = () => {
   const [selectedProjectId, setSelectedProjectId] = React.useState<number | null>(null);
+  const [generating, setGenerating] = React.useState(false);
+  const queryClient = useQueryClient();
 
   const { data: projectsData, isLoading } = useQuery({
     queryKey: ['projects'],
@@ -38,14 +40,66 @@ export const ProjectsPage: React.FC = () => {
     return 'text-brand-primary';
   };
 
+  const displayProjects = React.useMemo(() => {
+    const raw = Array.isArray(projectsData) ? projectsData : (projectsData?.projects || []);
+    if (!Array.isArray(raw)) return [];
+
+    const mapStatus = (s: string) => {
+      const v = String(s || '').toLowerCase();
+      if (v === 'delivered' || v === 'completed') return 'Completed';
+      if (v === 'review') return 'Review';
+      if (v === 'in_progress' || v === 'in progress') return 'In Progress';
+      if (v === 'pending') return 'In Progress';
+      return 'In Progress';
+    };
+
+    const progressFromStatus = (status: string) => {
+      if (status === 'Completed') return 100;
+      if (status === 'Review') return 85;
+      if (status === 'Delayed') return 55;
+      return 45;
+    };
+
+    return raw.map((p: any) => {
+      const due = p?.deadline ? new Date(p.deadline) : null;
+      const isLate = due ? (due.getTime() < Date.now() && String(p.status || '').toLowerCase() !== 'delivered') : false;
+      const baseStatus = mapStatus(p?.status);
+      const status = isLate ? 'Delayed' : baseStatus;
+      const progress = typeof p?.progress === 'number' ? p.progress : progressFromStatus(status);
+      const dueDate = due ? due.toLocaleDateString() : '—';
+      return {
+        ...p,
+        client: p?.client || p?.client_name || 'Client',
+        name: p?.name || p?.service_type || 'Project',
+        status,
+        progress,
+        dueDate,
+      };
+    });
+  }, [projectsData]);
+
+  const generateProjects = async () => {
+    setGenerating(true);
+    try {
+      await fetch('/api/agents/mission', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+      await queryClient.invalidateQueries({ queryKey: ['prospects'] });
+      await queryClient.invalidateQueries({ queryKey: ['projects'] });
+      await queryClient.invalidateQueries({ queryKey: ['deals'] });
+      await queryClient.invalidateQueries({ queryKey: ['stats'] });
+      await queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-display font-bold text-white italic tracking-tight">Active Projects</h1>
           <p className="text-zinc-500 mt-1 text-sm">Monitor delivery status and client satisfaction.</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           {isLoading && <Loader2 className="animate-spin text-zinc-500" size={16} />}
           <div className="flex -space-x-2">
             {[1, 2, 3].map(i => (
@@ -59,7 +113,7 @@ export const ProjectsPage: React.FC = () => {
       </div >
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {(projectsData || []).map((project: any) => (
+        {displayProjects.map((project: any) => (
           <motion.div
             key={project.id}
             initial={{ opacity: 0, scale: 0.95 }}
@@ -67,9 +121,9 @@ export const ProjectsPage: React.FC = () => {
             className="glass p-6 rounded-3xl border-white/10 hover:border-brand-primary/30 transition-all group cursor-pointer"
             onClick={() => setSelectedProjectId(project.id)}
           >
-            <div className="flex flex-col lg:flex-row lg:items-center gap-8">
+            <div className="flex flex-col gap-6">
               {/* Project Info */}
-              <div className="lg:w-1/4">
+              <div>
                 <div className="flex items-center gap-3 mb-2">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${project.status === 'Completed' ? 'bg-emerald-500/10 text-emerald-500' :
                     project.status === 'Delayed' ? 'bg-red-500/10 text-red-500' :
@@ -77,7 +131,7 @@ export const ProjectsPage: React.FC = () => {
                     }`}>
                     <Folder size={20} />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <h3 className="font-bold text-white truncate">{project.client}</h3>
                     <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">{project.name}</p>
                   </div>
@@ -95,7 +149,7 @@ export const ProjectsPage: React.FC = () => {
               </div>
 
               {/* Progress */}
-              <div className="flex-grow space-y-3">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Delivery Progress</span>
                   <span className="text-xs font-bold text-white">{project.progress}%</span>
@@ -120,20 +174,46 @@ export const ProjectsPage: React.FC = () => {
               </div>
 
               {/* Actions */}
-              <div className="lg:w-1/4 flex items-center justify-end gap-2">
-                <button className="p-3 rounded-2xl bg-white/5 border border-white/10 text-zinc-400 hover:text-white transition-all group-hover:bg-brand-primary/10 group-hover:border-brand-primary/30">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <button className="p-3 rounded-2xl bg-white/5 border border-white/10 text-zinc-400 hover:text-white transition-all">
                   <MessageSquare size={18} />
                 </button>
-                <button className="pl-4 pr-3 py-3 rounded-2xl bg-white/5 border border-white/10 text-zinc-400 hover:text-white transition-all group-hover:bg-brand-primary group-hover:text-white flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest">
+                <button className="flex-1 sm:flex-none pl-4 pr-3 py-3 rounded-2xl bg-white/5 border border-white/10 text-zinc-400 hover:text-white transition-all flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest">
                   View Portal
                   <User size={14} className="text-zinc-500" />
                 </button>
-                <span className="text-xs text-zinc-400">{project.client_name}</span>
               </div>
             </div>
           </motion.div>
         ))}
       </div>
+
+      {!isLoading && displayProjects.length === 0 && (
+        <div className="glass p-10 rounded-[32px] border-white/10 text-center">
+          <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-6">
+            <Folder size={28} className="text-zinc-500" />
+          </div>
+          <h3 className="text-xl font-display font-bold text-white italic">No projects yet</h3>
+          <p className="text-zinc-500 mt-2 max-w-xl mx-auto">
+            Projects appear after the pipeline progresses past outreach and negotiation. Generate a sample run to populate projects automatically.
+          </p>
+          <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={generateProjects}
+              disabled={generating}
+              className="w-full sm:w-auto px-8 py-3 rounded-2xl bg-brand-primary text-white font-bold hover:bg-brand-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {generating ? 'Generating...' : 'Generate Projects'}
+            </button>
+            <button
+              onClick={() => window.location.href = '/app'}
+              className="w-full sm:w-auto px-8 py-3 rounded-2xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 transition-all"
+            >
+              Go to Dashboard
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Project Detail Modal */}
       <EntityDetailModal

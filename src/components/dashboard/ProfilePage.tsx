@@ -1,8 +1,96 @@
-import React from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { User, Mail, Shield, Key, Save } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 
 export const ProfilePage: React.FC = () => {
+  const { data, isLoading } = useQuery({
+    queryKey: ['profile'],
+    queryFn: () => fetch('/api/profile').then(res => res.json()),
+  });
+
+  const avatarFileRef = useRef<HTMLInputElement | null>(null);
+
+  const initial = useMemo(() => ({
+    firstName: data?.firstName || '',
+    lastName: data?.lastName || '',
+    email: data?.email || '',
+    roleTitle: data?.roleTitle || 'Platform Owner',
+    avatarUrl: data?.avatarUrl || 'https://picsum.photos/seed/owner/200/200',
+    memberSince: data?.memberSince || 'March 2026',
+  }), [data]);
+
+  const [form, setForm] = useState(initial);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setForm(initial);
+  }, [initial]);
+
+  const dirty =
+    form.firstName !== initial.firstName ||
+    form.lastName !== initial.lastName ||
+    form.email !== initial.email ||
+    form.roleTitle !== initial.roleTitle ||
+    form.avatarUrl !== initial.avatarUrl;
+
+  const save = async () => {
+    setSaving(true);
+    setSaved(false);
+    try {
+      setAvatarError(null);
+      const payload = {
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        email: form.email.trim(),
+        roleTitle: form.roleTitle.trim(),
+        avatarUrl: form.avatarUrl.trim(),
+        memberSince: initial.memberSince,
+      };
+      const r = await fetch('/api/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (r.ok) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onAvatarFile = async (file: File | null) => {
+    setAvatarError(null);
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setAvatarError('Please select a valid image file.');
+      return;
+    }
+    const maxBytes = 2 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      setAvatarError('Image is too large. Max size is 2MB.');
+      return;
+    }
+
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Failed to read file.'));
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.readAsDataURL(file);
+    }).catch(() => '');
+
+    if (!dataUrl) {
+      setAvatarError('Failed to load image. Please try another file.');
+      return;
+    }
+
+    setForm((s) => ({ ...s, avatarUrl: dataUrl }));
+  };
+
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
       <div>
@@ -17,23 +105,33 @@ export const ProfilePage: React.FC = () => {
             <div className="w-24 h-24 rounded-full bg-gradient-to-br from-brand-primary to-brand-secondary p-[2px]">
               <div className="w-full h-full rounded-full bg-zinc-900 overflow-hidden">
                 <img 
-                  src="https://picsum.photos/seed/owner/200/200" 
+                  src={form.avatarUrl} 
                   alt="Profile" 
                   className="w-full h-full object-cover" 
                 />
               </div>
             </div>
-            <button className="absolute bottom-0 right-0 p-2 rounded-full bg-brand-primary text-white hover:bg-brand-primary/90 transition-colors shadow-lg">
+            <button
+              onClick={() => avatarFileRef.current?.click()}
+              className="absolute bottom-0 right-0 p-2 rounded-full bg-brand-primary text-white hover:bg-brand-primary/90 transition-colors shadow-lg"
+            >
               <User size={14} />
             </button>
+            <input
+              ref={avatarFileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => onAvatarFile(e.target.files?.[0] || null)}
+            />
           </div>
           <div>
-            <h3 className="text-xl font-bold text-white">Habibullah Isaliu</h3>
-            <p className="text-sm text-zinc-500">Platform Owner</p>
+            <h3 className="text-xl font-bold text-white">{form.firstName || '—'} {form.lastName || ''}</h3>
+            <p className="text-sm text-zinc-500">{form.roleTitle || 'Platform Owner'}</p>
           </div>
           <div className="w-full pt-4 border-t border-white/5">
             <p className="text-xs text-zinc-600 uppercase font-bold tracking-widest mb-2">Member Since</p>
-            <p className="text-zinc-400 font-mono text-sm">March 2026</p>
+            <p className="text-zinc-400 font-mono text-sm">{initial.memberSince}</p>
           </div>
         </div>
 
@@ -50,7 +148,9 @@ export const ProfilePage: React.FC = () => {
                 <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">First Name</label>
                 <input 
                   type="text" 
-                  defaultValue="Habibullah"
+                  value={form.firstName}
+                  onChange={(e) => setForm((s) => ({ ...s, firstName: e.target.value }))}
+                  disabled={isLoading || saving}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-primary/50 transition-all"
                 />
               </div>
@@ -58,7 +158,9 @@ export const ProfilePage: React.FC = () => {
                 <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Last Name</label>
                 <input 
                   type="text" 
-                  defaultValue="Isaliu"
+                  value={form.lastName}
+                  onChange={(e) => setForm((s) => ({ ...s, lastName: e.target.value }))}
+                  disabled={isLoading || saving}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-primary/50 transition-all"
                 />
               </div>
@@ -68,10 +170,50 @@ export const ProfilePage: React.FC = () => {
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
                   <input 
                     type="email" 
-                    defaultValue="habibullah@nexoris.ai"
+                    value={form.email}
+                    onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
+                    disabled={isLoading || saving}
                     className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white focus:outline-none focus:border-brand-primary/50 transition-all"
                   />
                 </div>
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Role Title</label>
+                <input
+                  type="text"
+                  value={form.roleTitle}
+                  onChange={(e) => setForm((s) => ({ ...s, roleTitle: e.target.value }))}
+                  disabled={isLoading || saving}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-primary/50 transition-all"
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Avatar URL</label>
+                <input
+                  type="url"
+                  value={form.avatarUrl}
+                  onChange={(e) => setForm((s) => ({ ...s, avatarUrl: e.target.value }))}
+                  disabled={isLoading || saving}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-primary/50 transition-all"
+                />
+                <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+                  <button
+                    type="button"
+                    onClick={() => avatarFileRef.current?.click()}
+                    disabled={isLoading || saving}
+                    className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-white hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Upload Avatar
+                  </button>
+                  <div className="text-[10px] text-zinc-500 font-mono">
+                    PNG/JPG/WebP · Max 2MB
+                  </div>
+                </div>
+                {avatarError && (
+                  <div className="text-xs text-red-400">
+                    {avatarError}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -116,9 +258,13 @@ export const ProfilePage: React.FC = () => {
           </div>
 
           <div className="flex justify-end">
-            <button className="px-8 py-3 bg-brand-primary text-white font-bold rounded-xl hover:bg-brand-primary/90 transition-all shadow-lg shadow-brand-primary/20 flex items-center gap-2">
+            <button
+              onClick={save}
+              disabled={isLoading || saving || !dirty}
+              className="px-8 py-3 bg-brand-primary text-white font-bold rounded-xl hover:bg-brand-primary/90 transition-all shadow-lg shadow-brand-primary/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <Save size={18} />
-              Save Changes
+              {saving ? 'Saving...' : saved ? 'Saved' : 'Save Changes'}
             </button>
           </div>
         </div>

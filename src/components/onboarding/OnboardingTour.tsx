@@ -55,10 +55,6 @@ export const OnboardingTour: React.FC = () => {
       content: 'Stay updated. Real-time alerts for new leads, replies, and payments appear here.',
     },
     {
-      target: '[data-tour="theme-toggle"]',
-      content: 'Customize your view. Switch between dark (default) and light modes.',
-    },
-    {
       target: '[data-tour="settings"]',
       content: 'Configure global settings, integrations (Stripe, Resend), and account preferences.',
     },
