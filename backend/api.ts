@@ -1094,32 +1094,15 @@ Write JSON with keys "subject" and "body" and "mockup_description".
   app.post("/api/agents/mission", async (req, res) => {
     try {
       const { category, location } = req.body || {};
-      const host = req.headers.host;
-      const proto = (req.headers["x-forwarded-proto"] as string) || "http";
-      if (!host) return res.status(400).json({ status: "error", message: "Missing host header" });
-      const baseUrl = `${proto}://${host}`;
 
-      const discoveryRes = await fetch(`${baseUrl}/api/agents/discovery`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category, location }),
-      });
-      const discovery = discoveryRes.ok ? await discoveryRes.json() : { status: "error" };
-
-      const outreachRes = await fetch(`${baseUrl}/api/agents/outreach`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      const outreach = outreachRes.ok ? await outreachRes.json() : { status: "error" };
-
-      const negotiationRes = await fetch(`${baseUrl}/api/agents/negotiation`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      const negotiation = negotiationRes.ok ? await negotiationRes.json() : { status: "error" };
+      // Call functions directly to share the same SQLite instance and avoid network overhead/timeouts
+      const discovery = await runDiscovery({ category, location });
+      const outreach = await runOutreach();
+      const negotiation = await runNegotiation();
 
       res.json({ status: "success", discovery, outreach, negotiation });
     } catch (e) {
+      console.error("Mission failed:", e);
       res.status(500).json({ status: "error", message: "Mission failed" });
     }
   });
