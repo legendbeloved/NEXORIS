@@ -131,13 +131,16 @@ export function createApiApp() {
 
   const genAI = createGenAI();
   const modelName = process.env.GEMINI_MODEL || "gemini-2.0-flash";
-  const agentWorkerUrl = (process.env.AGENT_WORKER_URL || "").trim();
   const agentWorkerSecret = (process.env.AGENT_WORKER_SECRET || "").trim();
 
-  const callAgentWorker = async (path: string, payload: any) => {
-    if (!agentWorkerUrl || !agentWorkerSecret) return null;
+  const callAgentWorker = async (agentNumber: number, path: string, payload: any) => {
+    const specificUrl = process.env[`AGENT_${agentNumber}_URL`];
+    const fallbackUrl = process.env.AGENT_WORKER_URL;
+    const baseUrl = (specificUrl || fallbackUrl || "").trim();
+
+    if (!baseUrl || !agentWorkerSecret) return null;
     try {
-      const url = `${agentWorkerUrl.replace(/\/$/, "")}${path}`;
+      const url = `${baseUrl.replace(/\/$/, "")}${path}`;
       const r = await fetch(url, {
         method: "POST",
         headers: {
@@ -540,8 +543,7 @@ export function createApiApp() {
   });
 
   const runDiscovery = async (body: any) => {
-    const workerRes =
-      agentWorkerUrl && agentWorkerSecret ? await callAgentWorker("/api/agents/1/start", { owner_id: "demo" }) : null;
+    const workerRes = await callAgentWorker(1, "/start", { owner_id: "demo" });
     if (workerRes?.ok) return { status: "success", mode: "worker", worker: workerRes };
     if (workerRes && !workerRes.ok) {
       try {
@@ -665,8 +667,7 @@ Use local-sounding names. If the category is general, be specific.`;
   });
 
   const runOutreach = async () => {
-    const workerRes =
-      agentWorkerUrl && agentWorkerSecret ? await callAgentWorker("/api/agents/2/start", { owner_id: "demo" }) : null;
+    const workerRes = await callAgentWorker(2, "/start", { owner_id: "demo" });
     if (workerRes?.ok) return { status: "success", mode: "worker", worker: workerRes };
     if (workerRes && !workerRes.ok) {
       try {
@@ -762,8 +763,7 @@ Write JSON with keys "subject" and "body" and "mockup_description".
   });
 
   const runNegotiation = async () => {
-    const workerRes =
-      agentWorkerUrl && agentWorkerSecret ? await callAgentWorker("/api/agents/3/start", { owner_id: "demo" }) : null;
+    const workerRes = await callAgentWorker(3, "/start", { owner_id: "demo" });
     if (workerRes?.ok) return { status: "success", mode: "worker", worker: workerRes };
     if (workerRes && !workerRes.ok) {
       try {
