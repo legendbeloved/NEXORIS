@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { GoogleGenAI } from "@google/genai";
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseServiceKey = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || "";
+const supabaseServiceKey = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
@@ -119,7 +119,7 @@ function normalizeNotification(row: any) {
     message: row.message,
     priority,
     action_url: null,
-    is_read: !!row.read,
+    is_read: !!row.is_read,
     requires_action: false,
     created_at: createdAt,
   };
@@ -256,9 +256,9 @@ export function createApiApp() {
     const { count } = await supabase.from("team_members").select("*", { count: "exact", head: true });
     if (!count) {
       const seed = [
-        { name: "Habibullah Isaliu", email: "habibullah@nexoris.ai", role: "Owner", status: "Active", avatar: "https://picsum.photos/seed/owner/100/100" },
-        { name: "Sarah Chen", email: "sarah@nexoris.ai", role: "Admin", status: "Active", avatar: "https://picsum.photos/seed/sarah/100/100" },
-        { name: "Mike Ross", email: "mike@nexoris.ai", role: "Member", status: "Pending", avatar: null },
+        { name: "Habibullah Isaliu", email: "habibullah@nexoris.ai", role: "Owner", status: "Active", avatar_url: "https://picsum.photos/seed/owner/100/100" },
+        { name: "Sarah Chen", email: "sarah@nexoris.ai", role: "Admin", status: "Active", avatar_url: "https://picsum.photos/seed/sarah/100/100" },
+        { name: "Mike Ross", email: "mike@nexoris.ai", role: "Member", status: "Pending", avatar_url: null },
       ];
       await supabase.from("team_members").insert(seed);
     }
@@ -267,7 +267,7 @@ export function createApiApp() {
   });
 
   app.post("/api/team", async (req, res) => {
-    const { name, email, role, status, avatar } = req.body || {};
+    const { name, email, role, status, avatar_url } = req.body || {};
     const n = String(name || "").trim();
     const e = String(email || "").trim().toLowerCase();
     const r = String(role || "Member").trim();
@@ -280,7 +280,7 @@ export function createApiApp() {
         email: e,
         role: r,
         status: s,
-        avatar: avatar ? String(avatar) : null,
+        avatar_url: avatar_url ? String(avatar_url) : null,
       }).select().single();
       if (error) throw error;
       res.json(data);
@@ -300,7 +300,7 @@ export function createApiApp() {
       email: typeof patch.email === "string" ? patch.email.trim().toLowerCase() : existing.email,
       role: typeof patch.role === "string" ? patch.role.trim() : existing.role,
       status: typeof patch.status === "string" ? patch.status.trim() : existing.status,
-      avatar: typeof patch.avatar === "string" ? patch.avatar.trim() : existing.avatar,
+      avatar_url: typeof patch.avatar_url === "string" ? patch.avatar_url.trim() : existing.avatar_url,
     };
 
     try {
@@ -405,7 +405,7 @@ export function createApiApp() {
     const to = from + l - 1;
 
     const { count: total } = await supabase.from("notifications").select("*", { count: "exact", head: true });
-    const { count: unreadCount } = await supabase.from("notifications").select("*", { count: "exact", head: true }).eq("read", false);
+    const { count: unreadCount } = await supabase.from("notifications").select("*", { count: "exact", head: true }).eq("is_read", false);
     const { data: rows } = await supabase.from("notifications")
       .select("*")
       .order("created_at", { ascending: false })
@@ -424,18 +424,18 @@ export function createApiApp() {
   });
 
   app.get("/api/notifications/unread-count", async (_req, res) => {
-    const { count } = await supabase.from("notifications").select("*", { count: "exact", head: true }).eq("read", false);
+    const { count } = await supabase.from("notifications").select("*", { count: "exact", head: true }).eq("is_read", false);
     res.json({ count: count || 0 });
   });
 
   app.post("/api/notifications/read-all", async (_req, res) => {
-    await supabase.from("notifications").update({ read: true }).eq("read", false);
+    await supabase.from("notifications").update({ is_read: true }).eq("is_read", false);
     res.json({ success: true });
   });
 
   app.patch("/api/notifications/:id/read", async (req, res) => {
     const { id } = req.params;
-    await supabase.from("notifications").update({ read: true }).eq("id", id);
+    await supabase.from("notifications").update({ is_read: true }).eq("id", id);
     res.json({ success: true });
   });
 
