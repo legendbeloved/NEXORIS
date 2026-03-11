@@ -1,134 +1,16 @@
 import express from "express";
-import Database from "better-sqlite3";
+import { createClient } from "@supabase/supabase-js";
 import { GoogleGenAI } from "@google/genai";
 
-function getDbPath() {
-  if (process.env.SQLITE_PATH) return process.env.SQLITE_PATH;
-  if (process.env.VERCEL) return "/tmp/nexoris.db";
-  return "nexoris.db";
-}
+const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseServiceKey = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || "";
 
-function initDb() {
-  const db = new Database(getDbPath());
-
-  db.exec(`
-  CREATE TABLE IF NOT EXISTS prospects (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    category TEXT,
-    location TEXT,
-    website TEXT,
-    email TEXT,
-    phone TEXT,
-    status TEXT DEFAULT 'discovered',
-    gap_analysis TEXT,
-    pain_points TEXT,
-    agent_id INTEGER,
-    token TEXT UNIQUE,
-    lead_score INTEGER,
-    signals TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE TABLE IF NOT EXISTS messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    prospect_id INTEGER,
-    sender TEXT,
-    content TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(prospect_id) REFERENCES prospects(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS outreach (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    prospect_id INTEGER,
-    variant TEXT,
-    subject TEXT,
-    body TEXT,
-    mockup_preview TEXT,
-    sent_at DATETIME,
-    opened_at DATETIME,
-    clicked_at DATETIME,
-    FOREIGN KEY(prospect_id) REFERENCES prospects(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS deals (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    prospect_id INTEGER,
-    amount REAL,
-    status TEXT,
-    closed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(prospect_id) REFERENCES prospects(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS notifications (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    message TEXT NOT NULL,
-    type TEXT,
-    agent_id INTEGER,
-    read INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE TABLE IF NOT EXISTS settings (
-    key TEXT PRIMARY KEY,
-    value TEXT
-  );
-
-  CREATE TABLE IF NOT EXISTS projects (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    prospect_id INTEGER,
-    service_type TEXT,
-    status TEXT DEFAULT 'pending',
-    files TEXT,
-    deadline DATETIME,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(prospect_id) REFERENCES prospects(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS analytics (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    metric_name TEXT NOT NULL,
-    value REAL,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE TABLE IF NOT EXISTS team_members (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    email TEXT NOT NULL UNIQUE,
-    role TEXT NOT NULL DEFAULT 'Member',
-    status TEXT NOT NULL DEFAULT 'Active',
-    avatar TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-  `);
-
-  try {
-    db.prepare("ALTER TABLE prospects ADD COLUMN lead_score INTEGER").run();
-  } catch { }
-  try {
-    db.prepare("ALTER TABLE prospects ADD COLUMN signals TEXT").run();
-  } catch { }
-
-  const alter = (sql: string) => {
-    try {
-      db.prepare(sql).run();
-    } catch { }
-  };
-
-  alter("ALTER TABLE outreach ADD COLUMN variant TEXT");
-  alter("ALTER TABLE outreach ADD COLUMN subject TEXT");
-  alter("ALTER TABLE outreach ADD COLUMN body TEXT");
-  alter("ALTER TABLE outreach ADD COLUMN mockup_preview TEXT");
-  alter("ALTER TABLE outreach ADD COLUMN sent_at DATETIME");
-  alter("ALTER TABLE outreach ADD COLUMN opened_at DATETIME");
-  alter("ALTER TABLE outreach ADD COLUMN clicked_at DATETIME");
-
-  return db;
-}
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false,
+  },
+});
 
 function createGenAI() {
   const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY || "";
@@ -247,7 +129,6 @@ export function createApiApp() {
   const app = express();
   app.use(express.json());
 
-  const db = initDb();
   const genAI = createGenAI();
   const modelName = process.env.GEMINI_MODEL || "gemini-2.0-flash";
   const agentWorkerUrl = (process.env.AGENT_WORKER_URL || "").trim();
@@ -278,107 +159,111 @@ export function createApiApp() {
     res.json({ ok: true });
   });
 
-  app.get("/api/config", (_req, res) => {
-    const row = db.prepare("SELECT value FROM settings WHERE key = 'agent_config'").get() as any;
-    const value = safeJsonParse(row?.value, {});
-    res.json(value);
+  app.get("/api/config", async (_req, res) => {
+    const { data } = await supabase.from("settings").select("value").eq("key", "agent_config").single();
+    res.json(data?.value || {});
   });
 
-  app.patch("/api/config", (req, res) => {
+  app.patch("/api/config", async (req, res) => {
     const payload = req.body || {};
-    const serialized = JSON.stringify(payload);
-    db.prepare(
-      "INSERT INTO settings (key, value) VALUES ('agent_config', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-    ).run(serialized);
+    await supabase.from("settings").upsert({ key: "agent_config", value: payload });
+
+    // Sync to agent_configs table for Python worker compatibility
+    try {
+      const globalCfg = payload.global || {};
+      const cities = globalCfg.targetRegion ? [globalCfg.targetRegion] : [];
+      const cats = globalCfg.categories || [];
+
+      for (const i of [1, 2, 3]) {
+        const agentKey = `agent${i}`;
+        const agentCfg = payload[agentKey] || {};
+        await supabase.from("agent_configs").upsert({
+          agent_number: i,
+          target_cities: cities,
+          categories: cats,
+          min_score: agentCfg.minScore || 50,
+          is_active: true,
+          updated_at: "now()"
+        }, { onConflict: "agent_number" });
+      }
+    } catch (e) {
+      console.error("Failed to sync agent_configs:", e);
+    }
+
     res.json({ status: "ok" });
   });
 
-  app.get("/api/profile", (_req, res) => {
-    const row = db.prepare("SELECT value FROM settings WHERE key = 'profile'").get() as any;
-    const value = safeJsonParse<any>(row?.value, {
+  app.get("/api/profile", async (_req, res) => {
+    const { data } = await supabase.from("settings").select("value").eq("key", "profile").single();
+    const fallback = {
       firstName: "Habibullah",
       lastName: "Isaliu",
       email: "habibullah@nexoris.ai",
       roleTitle: "Platform Owner",
       avatarUrl: "https://picsum.photos/seed/owner/200/200",
       memberSince: "March 2026",
-    });
-    res.json(value);
+    };
+    res.json(data?.value || fallback);
   });
 
-  app.patch("/api/profile", (req, res) => {
+  app.patch("/api/profile", async (req, res) => {
     const payload = req.body || {};
-    const serialized = JSON.stringify(payload);
-    db.prepare(
-      "INSERT INTO settings (key, value) VALUES ('profile', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-    ).run(serialized);
+    await supabase.from("settings").upsert({ key: "profile", value: payload });
     res.json({ status: "ok" });
   });
 
-  app.get("/api/settings/billing", (_req, res) => {
-    const row = db.prepare("SELECT value FROM settings WHERE key = 'billing_settings'").get() as any;
-    const value = safeJsonParse<any>(row?.value, {
+  app.get("/api/settings/billing", async (_req, res) => {
+    const { data } = await supabase.from("settings").select("value").eq("key", "billing_settings").single();
+    const fallback = {
       plan: "Pro",
       currency: "USD",
       invoiceEmail: "billing@nexoris.ai",
       autoRenew: true,
       taxId: "",
-    });
-    res.json(value);
+    };
+    res.json(data?.value || fallback);
   });
 
-  app.patch("/api/settings/billing", (req, res) => {
+  app.patch("/api/settings/billing", async (req, res) => {
     const payload = req.body || {};
-    const serialized = JSON.stringify(payload);
-    db.prepare(
-      "INSERT INTO settings (key, value) VALUES ('billing_settings', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-    ).run(serialized);
+    await supabase.from("settings").upsert({ key: "billing_settings", value: payload });
     res.json({ status: "ok" });
   });
 
-  app.get("/api/settings/notifications", (_req, res) => {
-    const row = db.prepare("SELECT value FROM settings WHERE key = 'notification_settings'").get() as any;
-    const value = safeJsonParse<any>(row?.value, {
+  app.get("/api/settings/notifications", async (_req, res) => {
+    const { data } = await supabase.from("settings").select("value").eq("key", "notification_settings").single();
+    const fallback = {
       inApp: true,
       email: true,
       weeklySummary: true,
       agentAlerts: true,
       dealAlerts: true,
       marketing: false,
-    });
-    res.json(value);
+    };
+    res.json(data?.value || fallback);
   });
 
-  app.patch("/api/settings/notifications", (req, res) => {
+  app.patch("/api/settings/notifications", async (req, res) => {
     const payload = req.body || {};
-    const serialized = JSON.stringify(payload);
-    db.prepare(
-      "INSERT INTO settings (key, value) VALUES ('notification_settings', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-    ).run(serialized);
+    await supabase.from("settings").upsert({ key: "notification_settings", value: payload });
     res.json({ status: "ok" });
   });
 
-  app.get("/api/team", (_req, res) => {
-    const countRow = db.prepare("SELECT COUNT(*) as count FROM team_members").get() as any;
-    const count = Number(countRow?.count || 0);
-    if (count === 0) {
+  app.get("/api/team", async (_req, res) => {
+    const { count } = await supabase.from("team_members").select("*", { count: "exact", head: true });
+    if (!count) {
       const seed = [
         { name: "Habibullah Isaliu", email: "habibullah@nexoris.ai", role: "Owner", status: "Active", avatar: "https://picsum.photos/seed/owner/100/100" },
         { name: "Sarah Chen", email: "sarah@nexoris.ai", role: "Admin", status: "Active", avatar: "https://picsum.photos/seed/sarah/100/100" },
         { name: "Mike Ross", email: "mike@nexoris.ai", role: "Member", status: "Pending", avatar: null },
       ];
-      const stmt = db.prepare("INSERT INTO team_members (name, email, role, status, avatar) VALUES (?, ?, ?, ?, ?)");
-      for (const m of seed) {
-        try {
-          stmt.run(m.name, m.email, m.role, m.status, m.avatar);
-        } catch { }
-      }
+      await supabase.from("team_members").insert(seed);
     }
-    const rows = db.prepare("SELECT * FROM team_members ORDER BY id ASC").all() as any[];
-    res.json(rows);
+    const { data } = await supabase.from("team_members").select("*").order("id", { ascending: true });
+    res.json(data || []);
   });
 
-  app.post("/api/team", (req, res) => {
+  app.post("/api/team", async (req, res) => {
     const { name, email, role, status, avatar } = req.body || {};
     const n = String(name || "").trim();
     const e = String(email || "").trim().toLowerCase();
@@ -387,20 +272,23 @@ export function createApiApp() {
     if (!n || !e) return res.status(400).json({ error: "name and email required" });
 
     try {
-      const result = db
-        .prepare("INSERT INTO team_members (name, email, role, status, avatar, updated_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)")
-        .run(n, e, r, s, avatar ? String(avatar) : null);
-      const row = db.prepare("SELECT * FROM team_members WHERE id = ?").get(result.lastInsertRowid) as any;
-      res.json(row);
+      const { data, error } = await supabase.from("team_members").insert({
+        name: n,
+        email: e,
+        role: r,
+        status: s,
+        avatar: avatar ? String(avatar) : null,
+      }).select().single();
+      if (error) throw error;
+      res.json(data);
     } catch {
       res.status(409).json({ error: "member already exists" });
     }
   });
 
-  app.patch("/api/team/:id", (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isFinite(id)) return res.status(400).json({ error: "invalid id" });
-    const existing = db.prepare("SELECT * FROM team_members WHERE id = ?").get(id) as any;
+  app.patch("/api/team/:id", async (req, res) => {
+    const id = req.params.id;
+    const { data: existing } = await supabase.from("team_members").select("*").eq("id", id).single();
     if (!existing) return res.status(404).json({ error: "not found" });
 
     const patch = req.body || {};
@@ -413,92 +301,82 @@ export function createApiApp() {
     };
 
     try {
-      db.prepare(
-        "UPDATE team_members SET name = ?, email = ?, role = ?, status = ?, avatar = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-      ).run(next.name, next.email, next.role, next.status, next.avatar || null, id);
-      const row = db.prepare("SELECT * FROM team_members WHERE id = ?").get(id) as any;
-      res.json(row);
+      const { data, error } = await supabase.from("team_members").update(next).eq("id", id).select().single();
+      if (error) throw error;
+      res.json(data);
     } catch {
       res.status(409).json({ error: "email already exists" });
     }
   });
 
-  app.delete("/api/team/:id", (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isFinite(id)) return res.status(400).json({ error: "invalid id" });
-    db.prepare("DELETE FROM team_members WHERE id = ?").run(id);
+  app.delete("/api/team/:id", async (req, res) => {
+    const { id } = req.params;
+    await supabase.from("team_members").delete().eq("id", id);
     res.json({ status: "ok" });
   });
 
-  app.get("/api/prospects", (req, res) => {
+  app.get("/api/prospects", async (req, res) => {
     const { page = 1, limit = 10, search = "", status = "", category = "" } = req.query as any;
-    const offset = (Number(page) - 1) * Number(limit);
+    const p = Math.max(1, Number(page));
+    const l = Math.max(1, Number(limit));
+    const from = (p - 1) * l;
+    const to = from + l - 1;
 
-    let query = "SELECT * FROM prospects WHERE name LIKE ?";
-    const params: any[] = [`%${search}%`];
+    let query = supabase.from("prospects").select("*", { count: "exact" });
 
-    if (status) {
-      query += " AND status = ?";
-      params.push(status);
-    }
-    if (category) {
-      query += " AND category = ?";
-      params.push(category);
-    }
+    if (search) query = query.ilike("name", `%${search}%`);
+    if (status) query = query.eq("status", status);
+    if (category) query = query.eq("category", category);
 
-    query += " ORDER BY updated_at DESC LIMIT ? OFFSET ?";
-    params.push(Number(limit), offset);
+    const { data, count, error } = await query.order("updated_at", { ascending: false }).range(from, to);
 
-    const rows = db.prepare(query).all(...params) as any[];
-    const prospects = rows.map((r) => {
-      const painPoints = safeJsonParse<string[]>(r.pain_points, []);
-      const signals = safeJsonParse<any>(r.signals, {});
-      return {
-        ...r,
-        painPoints,
-        signals,
-      };
-    });
-    const total = db.prepare("SELECT COUNT(*) as count FROM prospects").get() as any;
-    res.json({ prospects, total: total.count });
+    if (error) return res.status(500).json({ error: error.message });
+
+    const prospects = (data || []).map((r) => ({
+      ...r,
+      painPoints: Array.isArray(r.pain_points) ? r.pain_points : safeJsonParse<string[]>(r.pain_points, []),
+      signals: typeof r.signals === "object" ? r.signals : safeJsonParse<any>(r.signals, {}),
+    }));
+
+    res.json({ prospects, total: count || 0 });
   });
 
-  app.get("/api/prospects/:id", (req, res) => {
-    const id = Number(req.params.id);
-    const row = db.prepare("SELECT * FROM prospects WHERE id = ?").get(id) as any;
-    if (!row) return res.status(404).json({ error: "Prospect not found" });
+  app.get("/api/prospects/:id", async (req, res) => {
+    const { id } = req.params;
+    const { data: row, error } = await supabase.from("prospects").select("*").eq("id", id).single();
+    if (error || !row) return res.status(404).json({ error: "Prospect not found" });
 
-    const painPoints = safeJsonParse<string[]>(row.pain_points, []);
-    const signals = safeJsonParse<any>(row.signals, {});
-    const outreach = db.prepare("SELECT * FROM outreach WHERE prospect_id = ? ORDER BY sent_at DESC").all(id);
-    const messages = db.prepare("SELECT * FROM messages WHERE prospect_id = ? ORDER BY created_at ASC").all(id);
+    const { data: outreach } = await supabase.from("outreach_emails").select("*").eq("prospect_id", id).order("sent_at", { ascending: false });
+    const { data: messages } = await supabase.from("conversations").select("*").eq("prospect_id", id).order("created_at", { ascending: true });
 
     res.json({
       ...row,
-      painPoints,
-      signals,
-      outreach,
-      messages
+      painPoints: Array.isArray(row.pain_points) ? row.pain_points : safeJsonParse<string[]>(row.pain_points, []),
+      signals: typeof row.signals === "object" ? row.signals : safeJsonParse<any>(row.signals, {}),
+      outreach: outreach || [],
+      messages: messages || []
     });
   });
 
-  app.get("/api/stats", (_req, res) => {
-    const totalProspects = db.prepare("SELECT COUNT(*) as count FROM prospects").get() as any;
-    const emailsSent = db.prepare("SELECT COUNT(*) as count FROM outreach").get() as any;
-    const dealsClosed = db.prepare("SELECT COUNT(*) as count FROM deals WHERE status = 'paid'").get() as any;
-    const revenue = db.prepare("SELECT SUM(amount) as total FROM deals WHERE status = 'paid'").get() as any;
+  app.get("/api/stats", async (_req, res) => {
+    const { count: totalProspects } = await supabase.from("prospects").select("*", { count: "exact", head: true });
+    const { count: emailsSent } = await supabase.from("outreach_emails").select("*", { count: "exact", head: true });
+    const { count: dealsClosed } = await supabase.from("payments").select("*", { count: "exact", head: true }).eq("status", "PAID");
+    const { data: revenueData } = await supabase.from("payments").select("amount").eq("status", "PAID");
+
+    const totalRevenue = (revenueData || []).reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
 
     const stages = ["discovered", "contacted", "opened", "replied", "interested", "agreed", "paid", "delivered"];
-    const funnel = stages.map((stage) => {
-      const count = db.prepare("SELECT COUNT(*) as count FROM prospects WHERE status = ?").get(stage) as any;
-      return { stage, count: count.count };
-    });
+    const funnel = await Promise.all(stages.map(async (stage) => {
+      const { count } = await supabase.from("prospects").select("*", { count: "exact", head: true }).eq("status", stage);
+      return { stage, count: count || 0 };
+    }));
 
     res.json({
-      totalProspects: totalProspects.count,
-      emailsSent: emailsSent.count,
-      dealsClosed: dealsClosed.count,
-      revenue: revenue.total || 0,
+      totalProspects: totalProspects || 0,
+      emailsSent: emailsSent || 0,
+      dealsClosed: dealsClosed || 0,
+      revenue: totalRevenue,
       funnel,
     });
   });
@@ -516,48 +394,49 @@ export function createApiApp() {
     res.json(data);
   });
 
-  app.get("/api/notifications", (req, res) => {
+  app.get("/api/notifications", async (req, res) => {
     const { page = 1, limit = 20 } = req.query as any;
     const p = Math.max(1, Number(page));
     const l = Math.min(100, Math.max(1, Number(limit)));
-    const offset = (p - 1) * l;
+    const from = (p - 1) * l;
+    const to = from + l - 1;
 
-    const totalRow = db.prepare("SELECT COUNT(*) as count FROM notifications").get() as any;
-    const unreadRow = db.prepare("SELECT COUNT(*) as count FROM notifications WHERE read = 0").get() as any;
-    const rows = db
-      .prepare("SELECT * FROM notifications ORDER BY created_at DESC LIMIT ? OFFSET ?")
-      .all(l, offset) as any[];
+    const { count: total } = await supabase.from("notifications").select("*", { count: "exact", head: true });
+    const { count: unreadCount } = await supabase.from("notifications").select("*", { count: "exact", head: true }).eq("read", false);
+    const { data: rows } = await supabase.from("notifications")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .range(from, to);
 
     res.json({
       success: true,
       data: {
-        notifications: rows.map(normalizeNotification),
-        total: totalRow.count,
-        unread_count: unreadRow.count,
+        notifications: (rows || []).map(normalizeNotification),
+        total: total || 0,
+        unread_count: unreadCount || 0,
         page: p,
         limit: l,
       },
     });
   });
 
-  app.get("/api/notifications/unread-count", (_req, res) => {
-    const unreadRow = db.prepare("SELECT COUNT(*) as count FROM notifications WHERE read = 0").get() as any;
-    res.json({ count: unreadRow.count });
+  app.get("/api/notifications/unread-count", async (_req, res) => {
+    const { count } = await supabase.from("notifications").select("*", { count: "exact", head: true }).eq("read", false);
+    res.json({ count: count || 0 });
   });
 
-  app.post("/api/notifications/read-all", (_req, res) => {
-    db.prepare("UPDATE notifications SET read = 1 WHERE read = 0").run();
+  app.post("/api/notifications/read-all", async (_req, res) => {
+    await supabase.from("notifications").update({ read: true }).eq("read", false);
     res.json({ success: true });
   });
 
-  app.patch("/api/notifications/:id/read", (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isFinite(id)) return res.status(400).json({ success: false });
-    db.prepare("UPDATE notifications SET read = 1 WHERE id = ?").run(id);
+  app.patch("/api/notifications/:id/read", async (req, res) => {
+    const { id } = req.params;
+    await supabase.from("notifications").update({ read: true }).eq("id", id);
     res.json({ success: true });
   });
 
-  app.post("/api/internal/agent/notify", (req, res) => {
+  app.post("/api/internal/agent/notify", async (req, res) => {
     const secret = String(req.headers["x-agent-secret"] || "");
     if (!agentWorkerSecret || secret !== agentWorkerSecret) {
       return res.status(401).json({ error: "Unauthorized" });
@@ -577,44 +456,38 @@ export function createApiApp() {
         ? "success"
         : status.toUpperCase() === "ERROR"
           ? "error"
-          : status.toUpperCase() === "RUNNING"
-            ? "info"
-            : "info";
+          : "info";
 
-    db.prepare("INSERT INTO notifications (message, type, agent_id) VALUES (?, ?, ?)").run(
+    await supabase.from("notifications").insert({
       message,
       type,
-      Number.isFinite(agentNumber) ? agentNumber : null,
-    );
+      agent_id: Number.isFinite(agentNumber) ? agentNumber : null,
+    });
 
     res.json({ ok: true });
   });
 
-  app.get("/api/client/auth/:token", (req, res) => {
+  app.get("/api/client/auth/:token", async (req, res) => {
     const { token } = req.params;
-    const prospect = db.prepare("SELECT * FROM prospects WHERE token = ?").get(token) as any;
-    if (!prospect) return res.status(404).json({ error: "Invalid token" });
+    const { data: prospect, error } = await supabase.from("prospects").select("*").eq("token", token).single();
+    if (error || !prospect) return res.status(404).json({ error: "Invalid token" });
 
-    const messages = db
-      .prepare("SELECT * FROM messages WHERE prospect_id = ? ORDER BY created_at ASC")
-      .all(prospect.id) as any[];
-    const outreach = db
-      .prepare("SELECT mockup_preview FROM outreach WHERE prospect_id = ? ORDER BY sent_at DESC LIMIT 1")
-      .get(prospect.id) as any;
+    const { data: messages } = await supabase.from("conversations").select("*").eq("prospect_id", prospect.id).order("created_at", { ascending: true });
+    const { data: outreach } = await supabase.from("outreach_emails").select("mockup_preview").eq("prospect_id", prospect.id).order("sent_at", { ascending: false }).limit(1).single();
 
-    res.json({ prospect: { ...prospect, mockup_preview: outreach?.mockup_preview || "" }, messages });
+    res.json({ prospect: { ...prospect, mockup_preview: outreach?.mockup_preview || "" }, messages: messages || [] });
   });
 
   app.post("/api/client/message", async (req, res) => {
     const { token, content } = req.body || {};
-    const prospect = db.prepare("SELECT id, name FROM prospects WHERE token = ?").get(token) as any;
-    if (!prospect) return res.status(404).json({ error: "Invalid token" });
+    const { data: prospect, error } = await supabase.from("prospects").select("id, name, email").eq("token", token).single();
+    if (error || !prospect) return res.status(404).json({ error: "Invalid token" });
 
-    db.prepare("INSERT INTO messages (prospect_id, sender, content) VALUES (?, ?, ?)").run(
-      prospect.id,
-      "client",
-      content,
-    );
+    await supabase.from("conversations").insert({
+      prospect_id: prospect.id,
+      sender: "client",
+      message: content,
+    });
 
     setTimeout(async () => {
       try {
@@ -622,52 +495,46 @@ export function createApiApp() {
         const replyText = await generateAIContent(genAI, modelName, prompt);
         const reply = replyText || "I've received your message. Would you like to schedule a quick 15-minute call to discuss this further?";
 
-        if (reply.toLowerCase().includes("booking") || reply.toLowerCase().includes("schedule")) {
-          const booking = await createBooking(prospect.id, prospect.email || "");
-          if (booking.success) {
-            // Optionally append or specialized handling
-          }
-        }
+        await supabase.from("conversations").insert({
+          prospect_id: prospect.id,
+          sender: "agent",
+          message: reply,
+        });
 
-        db.prepare("INSERT INTO messages (prospect_id, sender, content) VALUES (?, ?, ?)").run(
-          prospect.id,
-          "agent",
-          reply,
-        );
-
-        db.prepare("INSERT INTO notifications (message, type, agent_id) VALUES (?, ?, ?)").run(
-          `New message from ${prospect.name} in client portal.`,
-          "info",
-          3,
-        );
+        await supabase.from("notifications").insert({
+          message: `New message from ${prospect.name} in client portal.`,
+          type: "info",
+          agent_id: 3,
+        });
       } catch { }
     }, 2000);
 
     res.json({ status: "success" });
   });
 
-  app.post("/api/client/pay", (req, res) => {
+  app.post("/api/client/pay", async (req, res) => {
     const { token, serviceType } = req.body || {};
-    const prospect = db.prepare("SELECT * FROM prospects WHERE token = ?").get(token) as any;
-    if (!prospect) return res.status(404).json({ error: "Invalid token" });
+    const { data: prospect, error } = await supabase.from("prospects").select("*").eq("token", token).single();
+    if (error || !prospect) return res.status(404).json({ error: "Invalid token" });
 
     const amount = 1200;
     const service = serviceType || "Digital Transformation";
     const deadline = new Date();
     deadline.setDate(deadline.getDate() + 14);
 
-    db.prepare("UPDATE prospects SET status = 'paid', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(prospect.id);
-    db.prepare("INSERT INTO deals (prospect_id, amount, status) VALUES (?, ?, ?)").run(prospect.id, amount, "paid");
-    db.prepare("INSERT INTO projects (prospect_id, service_type, status, deadline) VALUES (?, ?, 'in_progress', ?)").run(
-      prospect.id,
-      service,
-      deadline.toISOString(),
-    );
-    db.prepare("INSERT INTO notifications (message, type, agent_id) VALUES (?, ?, ?)").run(
-      `Payment received! Project "${service}" for ${prospect.name} is now underway.`,
-      "success",
-      3,
-    );
+    await supabase.from("prospects").update({ status: "paid", updated_at: "now()" }).eq("id", prospect.id);
+    await supabase.from("payments").insert({ prospect_id: prospect.id, amount, status: "paid", paid_at: "now()" });
+    await supabase.from("projects").insert({
+      prospect_id: prospect.id,
+      service_type: service,
+      status: "in_progress",
+      deadline: deadline.toISOString(),
+    });
+    await supabase.from("notifications").insert({
+      message: `Payment received! Project "${service}" for ${prospect.name} is now underway.`,
+      type: "success",
+      agent_id: 3,
+    });
 
     res.json({ status: "success", checkoutUrl: "https://checkout.stripe.com/pay/mock_session" });
   });
@@ -678,16 +545,16 @@ export function createApiApp() {
     if (workerRes?.ok) return { status: "success", mode: "worker", worker: workerRes };
     if (workerRes && !workerRes.ok) {
       try {
-        db.prepare("INSERT INTO notifications (message, type, agent_id) VALUES (?, ?, ?)").run(
-          `Worker Agent 1 unavailable (status ${workerRes.status}). Falling back to local execution.`,
-          "warning",
-          1,
-        );
+        await supabase.from("notifications").insert({
+          message: `Worker Agent 1 unavailable (status ${workerRes.status}). Falling back to local execution.`,
+          type: "warning",
+          agent_id: 1,
+        });
       } catch { }
     }
 
-    const cfgRow = db.prepare("SELECT value FROM settings WHERE key = 'agent_config'").get() as any;
-    const cfg = safeJsonParse<any>(cfgRow?.value, {});
+    const { data: cfgRow } = await supabase.from("settings").select("value").eq("key", "agent_config").single();
+    const cfg = cfgRow?.value || {};
     const { category, location } = body || {};
     const targetCategory = category || cfg?.global?.categories?.[0] || "E-commerce";
     const targetLocation = location || cfg?.global?.targetRegion || "San Francisco, CA";
@@ -759,24 +626,33 @@ Use local-sounding names. If the category is general, be specific.`;
         const gapAnalysis = (data.gapAnalysis || "No clear gaps found.").toString();
         const quickWin = (data.quickWin || "").toString();
         const finalGapAnalysis = quickWin ? `${gapAnalysis}\nQuick Win: ${quickWin}` : gapAnalysis;
-        const painPoints = JSON.stringify(Array.isArray(data.painPoints) ? data.painPoints : ["Slow mobile performance"]);
+        const painPoints = Array.isArray(data.painPoints) ? data.painPoints : ["Slow mobile performance"];
         const email = data.email || `contact@${String(biz.website).replace(/^https?:\/\//, "").replace(/\/.*/, "")}`;
         const phone = data.phone || "(555) 000-0000";
-        const signals = JSON.stringify(data.signals || {});
-        const leadScore = scoreFromSignals(data.signals || {});
+        const signals = data.signals || {};
+        const leadScore = scoreFromSignals(signals);
 
-        db.prepare(
-          `
-          INSERT INTO prospects (name, category, location, website, email, phone, gap_analysis, pain_points, token, lead_score, signals)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `,
-        ).run(biz.name, targetCategory, targetLocation, biz.website, email, phone, finalGapAnalysis, painPoints, token, leadScore, signals);
+        await supabase.from("prospects").insert({
+          name: biz.name,
+          category: targetCategory,
+          city: targetLocation,
+          website: biz.website,
+          email,
+          phone,
+          gap_analysis: finalGapAnalysis,
+          pain_points: painPoints,
+          token,
+          lead_score: leadScore,
+          ai_score: leadScore,
+          google_place_id: biz.place_id || null,
+          signals,
+        });
 
-        db.prepare("INSERT INTO notifications (message, type, agent_id) VALUES (?, ?, ?)").run(
-          `Agent 1 analyzed ${biz.name}: score ${leadScore}`,
-          "success",
-          1,
-        );
+        await supabase.from("notifications").insert({
+          message: `Agent 1 analyzed ${biz.name}: score ${leadScore}`,
+          type: "success",
+          agent_id: 1,
+        });
       } catch { }
     }
 
@@ -794,36 +670,38 @@ Use local-sounding names. If the category is general, be specific.`;
     if (workerRes?.ok) return { status: "success", mode: "worker", worker: workerRes };
     if (workerRes && !workerRes.ok) {
       try {
-        db.prepare("INSERT INTO notifications (message, type, agent_id) VALUES (?, ?, ?)").run(
-          `Worker Agent 2 unavailable (status ${workerRes.status}). Falling back to local execution.`,
-          "warning",
-          2,
-        );
+        await supabase.from("notifications").insert({
+          message: `Worker Agent 2 unavailable (status ${workerRes.status}). Falling back to local execution.`,
+          type: "warning",
+          agent_id: 2,
+        });
       } catch { }
     }
 
-    const cfgRow = db.prepare("SELECT value FROM settings WHERE key = 'agent_config'").get() as any;
-    const cfg = safeJsonParse<any>(cfgRow?.value, {});
+    const { data: cfgRow } = await supabase.from("settings").select("value").eq("key", "agent_config").single();
+    const cfg = cfgRow?.value || {};
     const sendLimit = Math.min(1000, Math.max(1, cfg?.agent2?.dailySendLimit || 5));
     const identity = cfg?.agent2?.senderIdentity || "Executive Concierge (Sarah)";
     const tone = cfg?.agent2?.brandTone || "Professional";
     const profile = cfg?.agent2?.personalityProfile || "Empathetic";
     const smartSched = !!cfg?.agent2?.smartScheduling;
     const ab = !!cfg?.agent2?.abTesting;
-    const prospects = db.prepare("SELECT * FROM prospects WHERE status = 'discovered' LIMIT ?").all(sendLimit) as any[];
 
-    for (const p of prospects) {
-      try {
-        const pains = safeJsonParse<any[]>(p.pain_points, []);
-        const signals = safeJsonParse<any>(p.signals, {});
-        const score = Number(p.lead_score || 50);
-        const variants = ab ? ["A", "B"] : ["A"];
+    const { data: prospects } = await supabase.from("prospects").select("*").eq("status", "discovered").limit(sendLimit);
 
-        if (smartSched) { }
+    if (prospects) {
+      for (const p of prospects) {
+        try {
+          const pains = Array.isArray(p.pain_points) ? p.pain_points : safeJsonParse<any[]>(p.pain_points, []);
+          const signals = typeof p.signals === "object" ? p.signals : safeJsonParse<any>(p.signals, {});
+          const score = Number(p.lead_score || 50);
+          const variants = ab ? ["A", "B"] : ["A"];
 
-        for (const v of variants) {
-          const style = v === "A" ? "Consultative, helpful, friendly" : "Direct, ROI-focused, concise";
-          const prompt = `You are ${identity}. Tone: ${tone}. Personality Profile: ${profile}. Style: ${style}.
+          if (smartSched) { }
+
+          for (const v of variants) {
+            const style = v === "A" ? "Consultative, helpful, friendly" : "Direct, ROI-focused, concise";
+            const prompt = `You are ${identity}. Tone: ${tone}. Personality Profile: ${profile}. Style: ${style}.
 Prospect: "${p.name}" Website: "${p.website}"
 Gaps: ${p.gap_analysis}
 Top pains: ${Array.isArray(pains) ? pains.join("; ") : ""}
@@ -836,38 +714,46 @@ Write JSON with keys "subject" and "body" and "mockup_description".
 - Keep body under 120 words
 - Signature includes ${identity}`;
 
-          const responseText = await generateAIContent(genAI, modelName, prompt, true);
-          const j = safeJsonParse<any>(responseText, {});
-          const subject =
-            (j.subject || "").toString().trim() || `Quick idea to improve ${p.name}'s ${p.category || "website"}`.trim();
-          const body =
-            (j.body || "").toString().trim() ||
-            `Hi ${p.name},\n\nNoticed a couple quick wins on ${p.website} that could improve conversions. If you're open to it, I can share a short audit + a lightweight mockup concept.\n\nBest,\n${identity}`.trim();
-          const mockup =
-            (j.mockup_description || "").toString().trim() || "A performance-optimized landing + booking flow concept.";
-          db.prepare(
-            "INSERT INTO outreach (prospect_id, variant, subject, body, mockup_preview, sent_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
-          ).run(p.id, v, subject, body, mockup);
-        }
+            const responseText = await generateAIContent(genAI, modelName, prompt, true);
+            const j = safeJsonParse<any>(responseText, {});
+            const subject =
+              (j.subject || "").toString().trim() || `Quick idea to improve ${p.name}'s ${p.category || "website"}`.trim();
+            const body =
+              (j.body || "").toString().trim() ||
+              `Hi ${p.name},\n\nNoticed a couple quick wins on ${p.website} that could improve conversions. If you're open to it, I can share a short audit + a lightweight mockup concept.\n\nBest,\n${identity}`.trim();
+            const mockup =
+              (j.mockup_description || "").toString().trim() || "A performance-optimized landing + booking flow concept.";
 
-        if (p.email && process.env.RESEND_API_KEY) {
-          await sendEmail(
-            p.email,
-            `Quick idea for ${p.name}`,
-            `<p>Hi ${p.name},</p><p>Noticed some digital gaps on your site ${p.website}. I've prepared a custom mockup for you.</p><p><a href="${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/client/${p.token}">View your personalized portal here</a></p>`,
-          );
-        }
+            await supabase.from("outreach_emails").insert({
+              prospect_id: p.id,
+              variant: v,
+              subject,
+              body,
+              mockup_preview: mockup,
+              sent_at: "now()",
+            });
+          }
 
-        db.prepare("UPDATE prospects SET status = 'contacted' WHERE id = ?").run(p.id);
-        db.prepare("INSERT INTO notifications (message, type, agent_id) VALUES (?, ?, ?)").run(
-          `Agent 2 prepared outreach${ab ? " (A/B)" : ""} for ${p.name}${p.email && process.env.RESEND_API_KEY ? " and sent via Resend" : ""}.`,
-          "info",
-          2,
-        );
-      } catch { }
+          if (p.email && process.env.RESEND_API_KEY) {
+            await sendEmail(
+              p.email,
+              `Quick idea for ${p.name}`,
+              `<p>Hi ${p.name},</p><p>Noticed some digital gaps on your site ${p.website}. I've prepared a custom mockup for you.</p><p><a href="${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/client/${p.token}">View your personalized portal here</a></p>`,
+            );
+          }
+
+          await supabase.from("prospects").update({ status: "contacted" }).eq("id", p.id);
+
+          await supabase.from("notifications").insert({
+            message: `Agent 2 prepared outreach${ab ? " (A/B)" : ""} for ${p.name}${p.email && process.env.RESEND_API_KEY ? " and sent via Resend" : ""}.`,
+            type: "info",
+            agent_id: 2,
+          });
+        } catch { }
+      }
     }
 
-    return { status: "success", mode: "local", message: "Outreach complete", processed: prospects.length };
+    return { status: "success", mode: "local", message: "Outreach complete", processed: prospects?.length || 0 };
   };
 
   app.post("/api/agents/outreach", async (_req, res) => {
@@ -881,16 +767,16 @@ Write JSON with keys "subject" and "body" and "mockup_description".
     if (workerRes?.ok) return { status: "success", mode: "worker", worker: workerRes };
     if (workerRes && !workerRes.ok) {
       try {
-        db.prepare("INSERT INTO notifications (message, type, agent_id) VALUES (?, ?, ?)").run(
-          `Worker Agent 3 unavailable (status ${workerRes.status}). Falling back to local execution.`,
-          "warning",
-          3,
-        );
+        await supabase.from("notifications").insert({
+          message: `Worker Agent 3 unavailable (status ${workerRes.status}). Falling back to local execution.`,
+          type: "warning",
+          agent_id: 3,
+        });
       } catch { }
     }
 
-    const cfgRow = db.prepare("SELECT value FROM settings WHERE key = 'agent_config'").get() as any;
-    const cfg = safeJsonParse<any>(cfgRow?.value, {});
+    const { data: cfgRow } = await supabase.from("settings").select("value").eq("key", "agent_config").single();
+    const cfg = cfgRow?.value || {};
     const rules = Array.isArray(cfg?.agent3?.rules) ? cfg.agent3.rules : [];
     const fallbackRule = { service: "SEO Audit", min: 500, max: 1500 };
     const rule = rules[0] || fallbackRule;
@@ -898,47 +784,52 @@ Write JSON with keys "subject" and "body" and "mockup_description".
     const min = Math.max(1, Number(rule.min || fallbackRule.min));
     const max = Math.max(min, Number(rule.max || fallbackRule.max));
 
-    const candidates = db
-      .prepare("SELECT * FROM prospects WHERE status IN ('contacted','opened','replied','interested','agreed') ORDER BY updated_at DESC LIMIT 10")
-      .all() as any[];
+    const { data: candidates } = await supabase.from("prospects")
+      .select("*")
+      .in("status", ["contacted", "opened", "replied", "interested", "agreed"])
+      .order("updated_at", { ascending: false })
+      .limit(10);
 
     let processed = 0;
     let progressed = 0;
 
-    for (const p of candidates) {
-      try {
-        const status = String(p.status || "");
-        if (status === "contacted" || status === "opened") {
-          db.prepare("UPDATE prospects SET status = 'replied', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(p.id);
-          db.prepare("INSERT INTO messages (prospect_id, sender, content) VALUES (?, ?, ?)").run(
-            p.id,
-            "client",
-            "Hi — thanks. This looks interesting. Can you share pricing and timeline?",
-          );
-          db.prepare("INSERT INTO notifications (message, type, agent_id) VALUES (?, ?, ?)").run(
-            `New reply received from ${p.name}. Agent 3 is negotiating.`,
-            "info",
-            3,
-          );
-          progressed++;
-        } else if (status === "replied" || status === "interested") {
-          const amount = Math.round(min + Math.random() * (max - min));
-          db.prepare("UPDATE prospects SET status = 'agreed', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(p.id);
-          db.prepare("INSERT INTO deals (prospect_id, amount, status) VALUES (?, ?, ?)").run(p.id, amount, "pending");
-          db.prepare("INSERT INTO projects (prospect_id, service_type, status, deadline) VALUES (?, ?, 'pending', ?)").run(
-            p.id,
-            service,
-            new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-          );
-          db.prepare("INSERT INTO notifications (message, type, agent_id) VALUES (?, ?, ?)").run(
-            `Deal agreed with ${p.name}: $${amount.toLocaleString("en-US")} for ${service}.`,
-            "success",
-            3,
-          );
-          progressed++;
-        }
-        processed++;
-      } catch { }
+    if (candidates) {
+      for (const p of candidates) {
+        try {
+          const status = String(p.status || "");
+          if (status === "contacted" || status === "opened") {
+            await supabase.from("prospects").update({ status: "replied", updated_at: "now()" }).eq("id", p.id);
+            await supabase.from("conversations").insert({
+              prospect_id: p.id,
+              sender: "client",
+              message: "Hi — thanks. This looks interesting. Can you share pricing and timeline?",
+            });
+            await supabase.from("notifications").insert({
+              message: `New reply received from ${p.name}. Agent 3 is negotiating.`,
+              type: "info",
+              agent_id: 3,
+            });
+            progressed++;
+          } else if (status === "replied" || status === "interested") {
+            const amount = Math.round(min + Math.random() * (max - min));
+            await supabase.from("prospects").update({ status: "agreed", updated_at: "now()" }).eq("id", p.id);
+            await supabase.from("payments").insert({ prospect_id: p.id, amount, status: "pending" });
+            await supabase.from("projects").insert({
+              prospect_id: p.id,
+              service_type: service,
+              status: "pending",
+              deadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+            });
+            await supabase.from("notifications").insert({
+              message: `Deal agreed with ${p.name}: $${amount.toLocaleString("en-US")} for ${service}.`,
+              type: "success",
+              agent_id: 3,
+            });
+            progressed++;
+          }
+          processed++;
+        } catch { }
+      }
     }
 
     return { status: "success", mode: "local", message: "Negotiation complete", processed, progressed };
@@ -962,9 +853,9 @@ Write JSON with keys "subject" and "body" and "mockup_description".
     lastNegotiationAt: null as number | null,
   };
 
-  const countProspectsByStatus = (status: string) => {
-    const row = db.prepare("SELECT COUNT(*) as count FROM prospects WHERE status = ?").get(status) as any;
-    return Number(row?.count || 0);
+  const countProspectsByStatus = async (status: string) => {
+    const { count } = await supabase.from("prospects").select("*", { count: "exact", head: true }).eq("status", status);
+    return count || 0;
   };
 
   const scheduleAutopilot = () => {
@@ -985,15 +876,15 @@ Write JSON with keys "subject" and "body" and "mockup_description".
     autopilot.lastTickAt = Date.now();
 
     try {
-      const cfgRow = db.prepare("SELECT value FROM settings WHERE key = 'agent_config'").get() as any;
-      const cfg = safeJsonParse<any>(cfgRow?.value, {});
+      const { data: cfgRow } = await supabase.from("settings").select("value").eq("key", "agent_config").single();
+      const cfg = cfgRow?.value || {};
       const category = cfg?.global?.categories?.[0] || "E-commerce";
       const location = cfg?.global?.targetRegion || "San Francisco, CA";
 
-      const discovered = countProspectsByStatus("discovered");
-      const contacted = countProspectsByStatus("contacted");
-      const replied = countProspectsByStatus("replied");
-      const interested = countProspectsByStatus("interested");
+      const discovered = await countProspectsByStatus("discovered");
+      const contacted = await countProspectsByStatus("contacted");
+      const replied = await countProspectsByStatus("replied");
+      const interested = await countProspectsByStatus("interested");
 
       const shouldDiscover = discovered < 5 || !autopilot.lastDiscoveryAt || Date.now() - autopilot.lastDiscoveryAt > 10 * 60 * 1000;
       const shouldOutreach = discovered > 0 || !autopilot.lastOutreachAt || Date.now() - autopilot.lastOutreachAt > 3 * 60 * 1000;
@@ -1007,16 +898,16 @@ Write JSON with keys "subject" and "body" and "mockup_description".
         result.ran.push("discovery");
       }
 
-      const discoveredAfter = countProspectsByStatus("discovered");
+      const discoveredAfter = await countProspectsByStatus("discovered");
       if (shouldOutreach && discoveredAfter > 0) {
         result.outreach = await runOutreach();
         autopilot.lastOutreachAt = Date.now();
         result.ran.push("outreach");
       }
 
-      const contactedAfter = countProspectsByStatus("contacted");
-      const repliedAfter = countProspectsByStatus("replied");
-      const interestedAfter = countProspectsByStatus("interested");
+      const contactedAfter = await countProspectsByStatus("contacted");
+      const repliedAfter = await countProspectsByStatus("replied");
+      const interestedAfter = await countProspectsByStatus("interested");
       if (shouldNegotiate && contactedAfter + repliedAfter + interestedAfter > 0) {
         result.negotiation = await runNegotiation();
         autopilot.lastNegotiationAt = Date.now();
@@ -1025,11 +916,11 @@ Write JSON with keys "subject" and "body" and "mockup_description".
 
       autopilot.lastResult = result;
       try {
-        db.prepare("INSERT INTO notifications (message, type, agent_id) VALUES (?, ?, ?)").run(
-          `Autopilot tick completed: ${result.ran.length ? result.ran.join(" → ") : "idle"}`,
-          "info",
-          0,
-        );
+        await supabase.from("notifications").insert({
+          message: `Autopilot tick completed: ${result.ran.length ? result.ran.join(" → ") : "idle"}`,
+          type: "info",
+          agent_id: 0,
+        });
       } catch { }
     } finally {
       autopilot.inFlight = false;
@@ -1048,7 +939,7 @@ Write JSON with keys "subject" and "body" and "mockup_description".
     });
   });
 
-  app.post("/api/agents/autopilot/start", (req, res) => {
+  app.post("/api/agents/autopilot/start", async (req, res) => {
     const nextInterval = Number(req.body?.intervalMs);
     if (Number.isFinite(nextInterval) && nextInterval >= 5000) autopilot.intervalMs = Math.floor(nextInterval);
     if (!autopilot.running) {
@@ -1061,18 +952,18 @@ Write JSON with keys "subject" and "body" and "mockup_description".
       autopilot.lastOutreachAt = null;
       autopilot.lastNegotiationAt = null;
       try {
-        db.prepare("INSERT INTO notifications (message, type, agent_id) VALUES (?, ?, ?)").run(
-          "Autopilot started. Agents are running continuously.",
-          "success",
-          0,
-        );
+        await supabase.from("notifications").insert({
+          message: "Autopilot started. Agents are running continuously.",
+          type: "success",
+          agent_id: 0,
+        });
       } catch { }
       setTimeout(() => tickAutopilot(), 100);
     }
     res.json({ running: autopilot.running, intervalMs: autopilot.intervalMs });
   });
 
-  app.post("/api/agents/autopilot/stop", (_req, res) => {
+  app.post("/api/agents/autopilot/stop", async (_req, res) => {
     autopilot.running = false;
     autopilot.inFlight = false;
     if (autopilot.timer) {
@@ -1082,11 +973,11 @@ Write JSON with keys "subject" and "body" and "mockup_description".
       autopilot.timer = null;
     }
     try {
-      db.prepare("INSERT INTO notifications (message, type, agent_id) VALUES (?, ?, ?)").run(
-        "Autopilot stopped.",
-        "warning",
-        0,
-      );
+      await supabase.from("notifications").insert({
+        message: "Autopilot stopped.",
+        type: "warning",
+        agent_id: 0,
+      });
     } catch { }
     res.json({ running: autopilot.running });
   });
@@ -1095,7 +986,6 @@ Write JSON with keys "subject" and "body" and "mockup_description".
     try {
       const { category, location } = req.body || {};
 
-      // Call functions directly to share the same SQLite instance and avoid network overhead/timeouts
       const discovery = await runDiscovery({ category, location });
       const outreach = await runOutreach();
       const negotiation = await runNegotiation();
@@ -1107,60 +997,76 @@ Write JSON with keys "subject" and "body" and "mockup_description".
     }
   });
 
-  app.get("/api/outreach", (_req, res) => {
-    const outreach = db
-      .prepare(
-        `
-      SELECT outreach.*, prospects.name as prospect_name 
-      FROM outreach 
-      JOIN prospects ON outreach.prospect_id = prospects.id 
-      ORDER BY sent_at DESC 
-      LIMIT 100
-    `,
-      )
-      .all() as any[];
-    res.json(outreach);
+  app.get("/api/outreach", async (_req, res) => {
+    const { data: outreach } = await supabase.from("outreach_emails")
+      .select(`
+        *,
+        prospects:prospect_id (name)
+      `)
+      .order("sent_at", { ascending: false })
+      .limit(100);
+
+    const normalized = (outreach || []).map(o => ({
+      ...o,
+      prospect_name: (o.prospects as any)?.name
+    }));
+
+    res.json(normalized);
   });
 
-  app.get("/api/deals", (_req, res) => {
-    const deals = db
-      .prepare(
-        `
-      SELECT deals.*, prospects.name as client_name 
-      FROM deals 
-      JOIN prospects ON deals.prospect_id = prospects.id 
-      ORDER BY closed_at DESC 
-      LIMIT 50
-    `,
-      )
-      .all() as any[];
-    res.json(deals);
+  app.get("/api/deals", async (_req, res) => {
+    const { data: deals } = await supabase.from("payments")
+      .select(`
+        *,
+        prospects:prospect_id (name)
+      `)
+      .order("paid_at", { ascending: false })
+      .limit(50);
+
+    const normalized = (deals || []).map(d => ({
+      ...d,
+      client_name: (d.prospects as any)?.name
+    }));
+    res.json(normalized);
   });
 
-  app.get("/api/projects", (_req, res) => {
-    const projects = db.prepare(`
-      SELECT projects.*, prospects.name as client_name 
-      FROM projects 
-      JOIN prospects ON projects.prospect_id = prospects.id
-      ORDER BY created_at DESC
-    `).all();
-    res.json(projects);
+  app.get("/api/projects", async (_req, res) => {
+    const { data: projects } = await supabase.from("projects")
+      .select(`
+        *,
+        prospects:prospect_id (name, email)
+      `)
+      .order("created_at", { ascending: false });
+
+    const normalized = (projects || []).map(p => ({
+      ...p,
+      client_name: (p.prospects as any)?.name,
+      client_email: (p.prospects as any)?.email
+    }));
+
+    res.json(normalized);
   });
 
-  app.get("/api/projects/:id", (req, res) => {
-    const id = Number(req.params.id);
-    const project = db.prepare(`
-      SELECT projects.*, prospects.name as client_name, prospects.email as client_email
-      FROM projects 
-      JOIN prospects ON projects.prospect_id = prospects.id
-      WHERE projects.id = ?
-    `).get(id) as any;
+  app.get("/api/projects/:id", async (req, res) => {
+    const { id } = req.params;
+    const { data: project, error } = await supabase.from("projects")
+      .select(`
+        *,
+        prospects:prospect_id (name, email)
+      `)
+      .eq("id", id)
+      .single();
 
-    if (!project) return res.status(404).json({ error: "Project not found" });
+    if (error || !project) return res.status(404).json({ error: "Project not found" });
 
-    const messages = db.prepare("SELECT * FROM messages WHERE prospect_id = ? ORDER BY created_at ASC").all(project.prospect_id);
+    const { data: messages } = await supabase.from("conversations").select("*").eq("prospect_id", project.prospect_id).order("created_at", { ascending: true });
 
-    res.json({ ...project, messages });
+    res.json({
+      ...project,
+      client_name: (project.prospects as any)?.name,
+      client_email: (project.prospects as any)?.email,
+      messages: messages || []
+    });
   });
 
   return app;
