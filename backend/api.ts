@@ -131,29 +131,38 @@ export function createApiApp() {
 
   const genAI = createGenAI();
   const modelName = process.env.GEMINI_MODEL || "gemini-2.0-flash";
-  const agentWorkerSecret = (process.env.AGENT_WORKER_SECRET || "").trim();
+  const nexorisApiSecret = (process.env.NEXORIS_API_SECRET || "dev-secret").trim();
 
   const callAgentWorker = async (agentNumber: number, path: string, payload: any) => {
     const specificUrl = process.env[`AGENT_${agentNumber}_URL`];
     const fallbackUrl = process.env.AGENT_WORKER_URL;
     const baseUrl = (specificUrl || fallbackUrl || "").trim();
 
-    if (!baseUrl || !agentWorkerSecret) return null;
+    console.log(`[AgentWorker] Calling agent ${agentNumber} at ${baseUrl}${path}`);
+
+    if (!baseUrl || !nexorisApiSecret) {
+      console.warn(`[AgentWorker] Missing baseUrl (${baseUrl}) or secret`);
+      return null;
+    }
     try {
       const url = `${baseUrl.replace(/\/$/, "")}${path}`;
       const r = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-agent-secret": agentWorkerSecret,
+          "x-agent-secret": nexorisApiSecret,
         },
         body: JSON.stringify(payload || {}),
       });
       const text = await r.text();
       const json = safeJsonParse<any>(text, null);
-      if (!r.ok) return { ok: false, status: r.status, data: json || text };
+      if (!r.ok) {
+        console.error(`[AgentWorker] Failed: ${r.status}`, json || text);
+        return { ok: false, status: r.status, data: json || text };
+      }
       return { ok: true, status: r.status, data: json || text };
     } catch (e) {
+      console.error(`[AgentWorker] Exception:`, e);
       return { ok: false, status: 0, data: null };
     }
   };

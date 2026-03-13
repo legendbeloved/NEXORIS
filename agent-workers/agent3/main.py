@@ -1,11 +1,11 @@
 from datetime import datetime
 import asyncio
 
-from fastapi import BackgroundTasks, FastAPI
+from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Depends
 from pydantic import BaseModel
 
 from agent import Agent3
-
+from config import Config
 
 app = FastAPI()
 agent = Agent3()
@@ -13,6 +13,11 @@ stop_flag = asyncio.Event()
 is_running = False
 started_at: datetime | None = None
 
+def verify_secret(x_agent_secret: str = Header(None)):
+    if not Config.NEXORIS_API_SECRET:
+        return
+    if x_agent_secret != Config.NEXORIS_API_SECRET:
+        raise HTTPException(status_code=403, detail="Forbidden: Invalid agent secret")
 
 class ProcessReplyRequest(BaseModel):
     prospect_id: str
@@ -23,7 +28,7 @@ class ProcessReplyRequest(BaseModel):
 
 
 @app.post("/process-reply")
-async def process_reply(req: ProcessReplyRequest, background_tasks: BackgroundTasks):
+async def process_reply(req: ProcessReplyRequest, background_tasks: BackgroundTasks, _ = Depends(verify_secret)):
     """
     Process a client reply for a prospect.
     """
@@ -38,7 +43,7 @@ async def process_reply(req: ProcessReplyRequest, background_tasks: BackgroundTa
 
 
 @app.post("/start")
-async def start(background_tasks: BackgroundTasks):
+async def start(background_tasks: BackgroundTasks, _ = Depends(verify_secret)):
     """
     Start the worker in scheduled mode.
 
@@ -56,7 +61,7 @@ async def start(background_tasks: BackgroundTasks):
 
 
 @app.post("/stop")
-async def stop():
+async def stop(_ = Depends(verify_secret)):
     stop_flag.set()
     return {"status": "stopping", "agent": 3}
 

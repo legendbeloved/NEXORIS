@@ -1,8 +1,9 @@
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI, BackgroundTasks, Header, HTTPException, Depends
 import asyncio
 from agent import Agent1
 from models import AgentStatus
 from datetime import datetime
+from config import Config
 
 app = FastAPI()
 agent = Agent1()
@@ -10,8 +11,14 @@ stop_flag = asyncio.Event()
 is_running = False
 start_time = None
 
+def verify_secret(x_agent_secret: str = Header(None)):
+    if not Config.NEXORIS_API_SECRET:
+        return # Allow if no secret is configured (dev)
+    if x_agent_secret != Config.NEXORIS_API_SECRET:
+        raise HTTPException(status_code=403, detail="Forbidden: Invalid agent secret")
+
 @app.post("/start")
-async def start_agent(background_tasks: BackgroundTasks):
+async def start_agent(background_tasks: BackgroundTasks, _ = Depends(verify_secret)):
     global is_running, start_time
     if is_running:
         return {"status": "already_running"}
@@ -24,7 +31,7 @@ async def start_agent(background_tasks: BackgroundTasks):
     return {"status": "started", "agent": 1}
 
 @app.post("/stop")
-async def stop_agent():
+async def stop_agent(_ = Depends(verify_secret)):
     stop_flag.set()
     return {"status": "stopping", "agent": 1}
 

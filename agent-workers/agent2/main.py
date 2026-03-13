@@ -1,4 +1,4 @@
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI, BackgroundTasks, Header, HTTPException, Depends
 import asyncio
 from pydantic import BaseModel
 import httpx
@@ -13,6 +13,12 @@ stop_flag = asyncio.Event()
 is_running = False
 start_time = None
 
+def verify_secret(x_agent_secret: str = Header(None)):
+    if not Config.NEXORIS_API_SECRET:
+        return
+    if x_agent_secret != Config.NEXORIS_API_SECRET:
+        raise HTTPException(status_code=403, detail="Forbidden: Invalid agent secret")
+
 class ProcessProspectRequest(BaseModel):
     prospect_id: int
     owner_id: str | None = None
@@ -24,7 +30,7 @@ class ProcessReplyRequest(BaseModel):
     owner_id: str | None = None
 
 @app.post("/start")
-async def start_agent(background_tasks: BackgroundTasks):
+async def start_agent(background_tasks: BackgroundTasks, _ = Depends(verify_secret)):
     global is_running, start_time
     if is_running:
         return {"status": "already_running"}
@@ -37,7 +43,7 @@ async def start_agent(background_tasks: BackgroundTasks):
     return {"status": "started", "agent": 2}
 
 @app.post("/process-prospect")
-async def process_prospect(req: ProcessProspectRequest, background_tasks: BackgroundTasks):
+async def process_prospect(req: ProcessProspectRequest, background_tasks: BackgroundTasks, _ = Depends(verify_secret)):
     """
     Process a single prospect by ID.
     This endpoint is used when Agent 1 triggers Agent 2.
@@ -46,7 +52,7 @@ async def process_prospect(req: ProcessProspectRequest, background_tasks: Backgr
     return {"status": "processing", "prospect_id": req.prospect_id}
 
 @app.post("/process-reply")
-async def process_reply(req: ProcessReplyRequest):
+async def process_reply(req: ProcessReplyRequest, _ = Depends(verify_secret)):
     """
     Forward a client reply to Agent 3 for negotiation handling.
     """
@@ -60,14 +66,14 @@ async def process_reply(req: ProcessReplyRequest):
                     "message": req.message,
                     "channel": req.channel,
                 },
-                headers={"X-NEXORIS-SECRET": Config.NEXORIS_API_SECRET},
+                headers={"x-agent-secret": Config.NEXORIS_API_SECRET},
             )
             return {"status": "forwarded", "agent3_status": r.status_code}
     except Exception as e:
         return {"status": "error", "error": str(e)}
 
 @app.post("/stop")
-async def stop_agent():
+async def stop_agent(_ = Depends(verify_secret)):
     stop_flag.set()
     return {"status": "stopping", "agent": 2}
 
