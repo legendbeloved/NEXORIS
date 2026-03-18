@@ -11,10 +11,14 @@ stop_flag = asyncio.Event()
 is_running = False
 start_time = None
 
-def verify_secret(x_agent_secret: str = Header(None)):
+def verify_secret(x_agent_secret: str = Header(None), authorization: str = Header(None)):
+    secret = x_agent_secret
+    if not secret and authorization and authorization.lower().startswith("bearer "):
+        secret = authorization[7:].strip()
+
     if not Config.NEXORIS_API_SECRET:
         return # Allow if no secret is configured (dev)
-    if x_agent_secret != Config.NEXORIS_API_SECRET:
+    if secret != Config.NEXORIS_API_SECRET:
         raise HTTPException(status_code=403, detail="Forbidden: Invalid agent secret")
 
 @app.post("/start")

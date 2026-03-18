@@ -13,10 +13,14 @@ stop_flag = asyncio.Event()
 is_running = False
 started_at: datetime | None = None
 
-def verify_secret(x_agent_secret: str = Header(None)):
+def verify_secret(x_agent_secret: str = Header(None), authorization: str = Header(None)):
+    secret = x_agent_secret
+    if not secret and authorization and authorization.lower().startswith("bearer "):
+        secret = authorization[7:].strip()
+
     if not Config.NEXORIS_API_SECRET:
         return
-    if x_agent_secret != Config.NEXORIS_API_SECRET:
+    if secret != Config.NEXORIS_API_SECRET:
         raise HTTPException(status_code=403, detail="Forbidden: Invalid agent secret")
 
 class ProcessReplyRequest(BaseModel):
@@ -89,4 +93,3 @@ async def _idle_loop():
     while not stop_flag.is_set():
         await asyncio.sleep(2)
     is_running = False
-

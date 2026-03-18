@@ -132,38 +132,43 @@ export function createApiApp() {
   const genAI = createGenAI();
   const modelName = process.env.GEMINI_MODEL || "gemini-2.0-flash";
   const nexorisApiSecret = (process.env.NEXORIS_API_SECRET || "dev-secret").trim();
+  const agentWorkerSecret = (process.env.AGENT_WORKER_SECRET || process.env.NEXORIS_API_SECRET || "dev-secret").trim();
 
   const callAgentWorker = async (agentNumber: number, path: string, payload: any) => {
     const specificUrl = process.env[`AGENT_${agentNumber}_URL`];
     const fallbackUrl = process.env.AGENT_WORKER_URL;
     const baseUrl = (specificUrl || fallbackUrl || "").trim();
 
-    console.log(`[AgentWorker] Calling agent ${agentNumber} at ${baseUrl}${path}`);
+    if (!baseUrl) return { ok: false, status: 0, data: { error: "missing_worker_url" } };
 
-    if (!baseUrl || !nexorisApiSecret) {
-      console.warn(`[AgentWorker] Missing baseUrl (${baseUrl}) or secret`);
-      return null;
-    }
+    const requestId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const url = `${baseUrl.replace(/\/$/, "")}${path}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
+
     try {
-      const url = `${baseUrl.replace(/\/$/, "")}${path}`;
       const r = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "User-Agent": "NEXORIS-Mission-Control/1.0",
+          "x-nexoris-request-id": requestId,
           "x-agent-secret": nexorisApiSecret,
+          Authorization: `Bearer ${nexorisApiSecret}`,
         },
         body: JSON.stringify(payload || {}),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
+
       const text = await r.text();
       const json = safeJsonParse<any>(text, null);
-      if (!r.ok) {
-        console.error(`[AgentWorker] Failed: ${r.status}`, json || text);
-        return { ok: false, status: r.status, data: json || text };
-      }
-      return { ok: true, status: r.status, data: json || text };
+      const data = json ?? text;
+      if (!r.ok) return { ok: false, status: r.status, data, requestId };
+      return { ok: true, status: r.status, data, requestId };
     } catch (e) {
-      console.error(`[AgentWorker] Exception:`, e);
-      return { ok: false, status: 0, data: null };
+      clearTimeout(timeoutId);
+      return { ok: false, status: 0, data: { error: "worker_request_failed" }, requestId };
     }
   };
 
@@ -449,8 +454,11 @@ export function createApiApp() {
   });
 
   app.post("/api/internal/agent/notify", async (req, res) => {
-    const secret = String(req.headers["x-agent-secret"] || "");
-    if (!agentWorkerSecret || secret !== agentWorkerSecret) {
+    const headerSecret = String(req.headers["x-agent-secret"] || "").trim();
+    const authHeader = String(req.headers.authorization || "").trim();
+    const bearer = authHeader.toLowerCase().startsWith("bearer ") ? authHeader.slice(7).trim() : "";
+    const secret = headerSecret || bearer;
+    if (!secret || (secret !== nexorisApiSecret && secret !== agentWorkerSecret)) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 

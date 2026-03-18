@@ -13,10 +13,14 @@ stop_flag = asyncio.Event()
 is_running = False
 start_time = None
 
-def verify_secret(x_agent_secret: str = Header(None)):
+def verify_secret(x_agent_secret: str = Header(None), authorization: str = Header(None)):
+    secret = x_agent_secret
+    if not secret and authorization and authorization.lower().startswith("bearer "):
+        secret = authorization[7:].strip()
+
     if not Config.NEXORIS_API_SECRET:
         return
-    if x_agent_secret != Config.NEXORIS_API_SECRET:
+    if secret != Config.NEXORIS_API_SECRET:
         raise HTTPException(status_code=403, detail="Forbidden: Invalid agent secret")
 
 class ProcessProspectRequest(BaseModel):
@@ -66,7 +70,7 @@ async def process_reply(req: ProcessReplyRequest, _ = Depends(verify_secret)):
                     "message": req.message,
                     "channel": req.channel,
                 },
-                headers={"x-agent-secret": Config.NEXORIS_API_SECRET},
+                headers={"x-agent-secret": Config.NEXORIS_API_SECRET, "Authorization": f"Bearer {Config.NEXORIS_API_SECRET}"},
             )
             return {"status": "forwarded", "agent3_status": r.status_code}
     except Exception as e:
