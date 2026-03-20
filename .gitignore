@@ -8,3 +8,6 @@ coverage/
 !.env.example
 nexoris.db
 nexoris.db-journal
+.env.local
+agent-workers/**/.env
+.env
