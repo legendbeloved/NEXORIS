@@ -1,0 +1,6 @@
+{
+  // Enable loading environment variables from .env files in the integrated Python terminal
+  "python.terminal.useEnvFile": true,
+  // Path to the env file to load. You can override per workspace or per terminal if needed.
+  "python.terminal.envFile": "${workspaceFolder}/.env.local"
+}
