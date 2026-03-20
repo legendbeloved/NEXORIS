@@ -5,12 +5,30 @@ import { GoogleGenAI } from "@google/genai";
 const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseServiceKey = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+let supabase: ReturnType<typeof createClient> | null = null;
+try {
+  supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false,
   },
 });
+} catch (err) {
+  console.error("Failed to initialize Supabase client. Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in your environment.");
+  supabase = null;
+}
+
+// If Supabase is not configured, return a friendly 503 for API calls (except health)
+const apiNotConfigured = (req: any, res: any, next: any) => {
+  const isConfigured = !!supabase;
+  if (!isConfigured && req.path.startsWith('/api') && req.path !== '/api/health') {
+    return res.status(503).json({ ok: false, error: 'Backend not configured: missing environment variables for Supabase' });
+  }
+  next();
+};
+
+// Attach middleware early
+app.use(apiNotConfigured);
 
 function createGenAI() {
   const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY || "";
