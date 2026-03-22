@@ -173,6 +173,12 @@ export function createApiApp() {
     // ignore if diagnostics wiring fails for any reason during runtime
   }
   // Diagnostics endpoint wired via backend/diagnostics.ts (Plan A)
+  // Optional MVP endpoints (phase 2). Enabled via MVP_ENABLED env var.
+  if ((process.env.MVP_ENABLED || "false").toLowerCase() === "true") {
+    try { const m = require('./mvp/auth_mvp_v3'); app.use('/api/mvp/auth', m.authMvpRouter); } catch {}
+    try { const m = require('./mvp/prospects_mvp_v3'); app.use('/api/mvp/prospects', m.prospectsMvpRouter); } catch {}
+    try { const m = require('./mvp/admin_users_mvp_v3'); app.use('/api/mvp/admin', m.adminUsersMvpRouter); } catch {}
+  }
 
   const genAI = createGenAI();
   const modelName = process.env.GEMINI_MODEL || "gemini-2.0-flash";
