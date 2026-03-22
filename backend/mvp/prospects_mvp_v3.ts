@@ -13,4 +13,10 @@ prospectsMvpRouter.get('/export', (_req, res) => {
   res.json({ prospects: store });
 });
 
+// Clear in-memory store (handy for tests)
+prospectsMvpRouter.post('/clear', (_req, res) => {
+  store.length = 0;
+  res.json({ cleared: true, total: 0 });
+});
+
 export default prospectsMvpRouter;
