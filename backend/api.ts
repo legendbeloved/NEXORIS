@@ -1,6 +1,9 @@
 import express from "express";
 import { createClient } from "@supabase/supabase-js";
 import { GoogleGenAI } from "@google/genai";
+import { attachDiagnostics } from "./diagnostics";
+import { requireAuth, requireRole } from './middleware/auth';
+// MVP routes for MVP features (auth/admin/prospects) are temporarily removed to restore baseline
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseServiceKey = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -27,8 +30,20 @@ const apiNotConfigured = (req: any, res: any, next: any) => {
   next();
 };
 
-// Attach middleware early
-app.use(apiNotConfigured);
+  // Diagnostics route and collection are provided by backend/diagnostics.ts via attachDiagnostics(app).
+// Attach middleware early inside createApiApp(); this line will be invoked there.
+
+// Content Security Policy middleware (safe-by-default)
+function setCSP(req: any, res: any, next: any) {
+  const allowUnsafeEval = (process.env.ENABLE_UNSAFE_EVAL || "").toLowerCase() === "true";
+  const scriptSrc = allowUnsafeEval ? "'self' 'unsafe-eval'" : "'self'";
+  // Keep style inline only if explicitly allowed to avoid conflicts with CSP
+  res.setHeader(
+    "Content-Security-Policy",
+    `default-src 'self'; script-src ${scriptSrc}; style-src 'self' 'unsafe-inline'; object-src 'none'`
+  );
+  next();
+}
 
 function createGenAI() {
   const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY || "";
@@ -146,6 +161,18 @@ function normalizeNotification(row: any) {
 export function createApiApp() {
   const app = express();
   app.use(express.json());
+  // CSP middleware to harden script execution policy
+  app.use(setCSP);
+  // MVP endpoints temporarily removed to restore baseline
+  // Guard: return 503 when essential services are not configured
+  app.use(apiNotConfigured);
+  // Wire diagnostics endpoint (Plan A)
+  try {
+    attachDiagnostics(app);
+  } catch {
+    // ignore if diagnostics wiring fails for any reason during runtime
+  }
+  // Diagnostics endpoint wired via backend/diagnostics.ts (Plan A)
 
   const genAI = createGenAI();
   const modelName = process.env.GEMINI_MODEL || "gemini-2.0-flash";
@@ -1104,5 +1131,7 @@ Write JSON with keys "subject" and "body" and "mockup_description".
     });
   });
 
+  // Diagnostics endpoint inside function scope
+  // diagnostics endpoint provided by diagnostics.ts
   return app;
 }
