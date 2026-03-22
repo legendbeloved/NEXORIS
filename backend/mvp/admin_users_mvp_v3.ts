@@ -1,6 +1,17 @@
 import express from 'express';
 export const adminUsersMvpRouter = express.Router();
 
+// Simple MVP guard to simulate admin auth for tests
+adminUsersMvpRouter.use((req, res, next) => {
+  const token = String(req.headers['x-mvp-auth'] || '').toLowerCase();
+  if (token === 'demo') return next();
+  if (!token) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  // treat any non-empty value as allowed in this MVP context (adjust as needed)
+  next();
+});
+
 let users = [
   { id: 1, name: 'Alice Admin', email: 'alice@example.com' },
   { id: 2, name: 'Bob User', email: 'bob@example.com' },
