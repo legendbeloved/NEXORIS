@@ -19,6 +19,8 @@ fi
 
 echo "- Testing admin users (GET /api/mvp/admin/users)"
 curl -s "$BASE_URL/api/mvp/admin/users"
+echo "- Reset admin users (POST /api/mvp/admin/reset)"
+curl -s -X POST "$BASE_URL/api/mvp/admin/reset" >/dev/null || true
 
 echo "- Testing prospects import/export (POST /api/mvp/prospects/import, GET /api/mvp/prospects/export)"
 curl -s -X POST -H "Content-Type: application/json" -d '{"prospects":[{"name":"TestCo","website":"https://example.test","category":"Testing"}]}' "$BASE_URL/api/mvp/prospects/import"
