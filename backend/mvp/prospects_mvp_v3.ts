@@ -95,6 +95,11 @@ prospectsMvpRouter.post('/clear', (_req, res) => {
   res.json({ cleared: true, total: store.length });
 });
 
+// Small count endpoint for convenience
+prospectsMvpRouter.get('/count', (_req, res) => {
+  res.json({ count: store.length });
+});
+
 // Clear in-memory store (handy for tests)
 prospectsMvpRouter.post('/clear', (_req, res) => {
   store.length = 0;

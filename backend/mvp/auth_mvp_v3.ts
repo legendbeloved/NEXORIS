@@ -41,4 +41,18 @@ authMvpRouter.post('/refresh', (req, res) => {
   res.json({ ok: true, token: newToken, user: { username: user } });
 });
 
+// Simple health check for the MVP auth surface
+authMvpRouter.get('/health', (_req, res) => {
+  res.json({ ok: true, mvp: 'auth' });
+});
+
+// Who am I? quick self-check using token
+authMvpRouter.get('/whoami', (req, res) => {
+  const authHeader = (req.headers['authorization'] || '') as string;
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  const user = token ? (sessions.get(token) || null) : null;
+  if (!user) return res.status(401).json({ ok: false, error: 'unauthorized' });
+  res.json({ ok: true, user: { username: user } });
+});
+
 export default authMvpRouter;

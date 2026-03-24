@@ -18,7 +18,16 @@ let users = [
 ];
 
 adminUsersMvpRouter.get('/users', (_req, res) => {
-  res.json({ users });
+  let result = [...users];
+  const q = _req.query?.search?.toString?.() || _req.query?.name?.toString?.() || '';
+  if (q) {
+    result = result.filter(u => u.name.toLowerCase().includes(q.toLowerCase()) || u.email.toLowerCase().includes(q.toLowerCase()));
+  }
+  const page = Number(_req.query?.page) || 1;
+  const limit = Math.max(1, Number(_req.query?.limit) || 10);
+  const from = (page - 1) * limit;
+  const to = from + limit;
+  res.json({ users: result.slice(from, to), total: result.length });
 });
 
 adminUsersMvpRouter.post('/users', (_req, res) => {
