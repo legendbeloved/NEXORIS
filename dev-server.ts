@@ -9,7 +9,7 @@ dotenv.config();
 
 async function start() {
   const app = createApiApp();
-  const port = Number(process.env.PORT || 3008);
+  const port = Number(process.env.PORT || 3000);
 
   const vite = await createViteServer({
     server: {

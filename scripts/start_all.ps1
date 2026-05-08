@@ -16,18 +16,18 @@ function Load-EnvFile([string]$path) {
 }
 
 # Agent 1
-$envPath1 = "$base\agent-workers\agent1\.env"
+$envPath1 = "$base\..\agent-workers\agent1\.env"
 Load-EnvFile $envPath1
-Start-Process -FilePath python -ArgumentList '-m','uvicorn','main:app','--reload','--port','8001','--host','0.0.0.0' -WorkingDirectory "$base\agent-workers\agent1" -NoNewWindow
+Start-Process -FilePath python -ArgumentList '-m','uvicorn','main:app','--reload','--port','8001','--host','0.0.0.0' -WorkingDirectory "$base\..\agent-workers\agent1" -NoNewWindow
 
 # Agent 2
-$envPath2 = "$base\agent-workers\agent2\.env"
+$envPath2 = "$base\..\agent-workers\agent2\.env"
 Load-EnvFile $envPath2
-Start-Process -FilePath python -ArgumentList '-m','uvicorn','main:app','--reload','--port','8002','--host','0.0.0.0' -WorkingDirectory "$base\agent-workers\agent2" -NoNewWindow
+Start-Process -FilePath python -ArgumentList '-m','uvicorn','main:app','--reload','--port','8002','--host','0.0.0.0' -WorkingDirectory "$base\..\agent-workers\agent2" -NoNewWindow
 
 # Agent 3
-$envPath3 = "$base\agent-workers\agent3\.env"
+$envPath3 = "$base\..\agent-workers\agent3\.env"
 Load-EnvFile $envPath3
-Start-Process -FilePath python -ArgumentList '-m','uvicorn','main:app','--reload','--port','8003','--host','0.0.0.0' -WorkingDirectory "$base\agent-workers\agent3" -NoNewWindow
+Start-Process -FilePath python -ArgumentList '-m','uvicorn','main:app','--reload','--port','8003','--host','0.0.0.0' -WorkingDirectory "$base\..\agent-workers\agent3" -NoNewWindow
 
 Write-Output 'All agents started (Windows).'
